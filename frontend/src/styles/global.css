@@ -1,0 +1,21 @@
+.language-toggle {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.language-toggle button {
+  border: none;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  background: var(--card-bg);
+  color: var(--text-color);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--soft-shadow);
+}
+
+.language-toggle button.active {
+  background: var(--primary-gradient);
+  color: white;
+}
