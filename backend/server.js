@@ -16,6 +16,13 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/foods", require("./routes/foodRoutes"));
+app.use("/api/meals", require("./routes/mealRoutes"));
+app.use("/api/water", require("./routes/waterRoutes"));
+app.use("/api/weight", require("./routes/weightRoutes"));
+app.use("/api/sport", require("./routes/sportRoutes"));
+app.use("/api/fasts", require("./routes/fastRoutes"));
+app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 
 const PORT = process.env.PORT || 5000;
 
