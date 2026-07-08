@@ -15,6 +15,8 @@ app.get("/", (req, res) => {
   res.send("Calorie Tracker API is running");
 });
 
+app.use("/api/auth", require("./routes/authRoutes"));
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
