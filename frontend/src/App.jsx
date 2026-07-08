@@ -1,14 +1,16 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
-import Layout from "./components/Layout";
+import Layout from "./layout/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import HomePage from "./pages/HomePage";
+import MealsPage from "./pages/MealsPage";
 import FoodsPage from "./pages/FoodsPage";
 import SportPage from "./pages/SportPage";
 import StatisticsPage from "./pages/StatisticsPage";
+import MessagesPage from "./pages/MessagesPage";
 import ProfilePage from "./pages/ProfilePage";
 
 const PublicRoute = ({ children }) => {
@@ -51,9 +53,11 @@ const AppRoutes = () => {
         }
       >
         <Route index element={<HomePage />} />
+        <Route path="meals" element={<MealsPage />} />
         <Route path="foods" element={<FoodsPage />} />
         <Route path="sport" element={<SportPage />} />
         <Route path="statistics" element={<StatisticsPage />} />
+        <Route path="messages" element={<MessagesPage />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>
     </Routes>

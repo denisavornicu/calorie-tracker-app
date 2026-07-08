@@ -41,11 +41,23 @@ export const resources = {
       loading: "Se încarcă...",
       invalidCredentials: "Datele de autentificare nu sunt corecte.",
       registerFailed: "Înregistrarea nu a reușit.",
+      meals: "Mese",
+      messages: "Mesaje",
+      notifications: "Notificări",
+      addFood: "Adaugă aliment",
+      mealsComingSoon: "Aici vom construi formularul pentru adăugarea meselor, cu selectarea alimentelor și calculul valorilor nutriționale.",
+      messagesComingSoon: "Aici vom construi mesageria dintre utilizatori și trimiterea de idei de mese sau statistici.",
     },
   },
 
   en: {
     translation: {
+      meals: "Meals",
+      messages: "Messages",
+      notifications: "Notifications",
+      addFood: "Add food",
+      mealsComingSoon: "Here we will build the meal form, with food selection and automatic nutrition calculation.",
+      messagesComingSoon: "Here we will build messaging between users and sharing meal ideas or statistics.",
       appName: "Calorie Tracker",
       welcomeBack: "Welcome back",
       createAccount: "Create account",

@@ -10,8 +10,21 @@ const router = express.Router();
 
 const getToday = () => new Date().toISOString().slice(0, 10);
 
+const roundValue = (value) => Math.round(value * 10) / 10;
+
 const sumValues = (items, selector) => {
   return items.reduce((total, item) => total + selector(item), 0);
+};
+
+const buildNutrientSummary = (consumed, target) => {
+  const safeConsumed = roundValue(consumed || 0);
+  const safeTarget = roundValue(target || 0);
+
+  return {
+    consumed: safeConsumed,
+    target: safeTarget,
+    remaining: roundValue(safeTarget - safeConsumed),
+  };
 };
 
 router.get("/today", protect, async (req, res) => {
@@ -31,7 +44,7 @@ router.get("/today", protect, async (req, res) => {
     const sportEntries = await SportEntry.find({
       user: req.user._id,
       date,
-    });
+    }).sort({ createdAt: 1 });
 
     const latestWeight = await WeightEntry.findOne({
       user: req.user._id,
@@ -42,32 +55,80 @@ router.get("/today", protect, async (req, res) => {
       status: "active",
     });
 
-    const consumedCalories = sumValues(meals, (meal) => meal.totals.calories);
-    const caloriesBurned = sumValues(sportEntries, (entry) => entry.caloriesBurned);
-    const waterConsumedMl = sumValues(waterEntries, (entry) => entry.amountMl);
+    const profile = req.user.profile || {};
 
-    const maintenanceCalories = req.user.profile?.maintenanceCalories || 1360;
-    const waterTargetMl = req.user.profile?.waterTargetMl || 2500;
+    const consumedCalories = sumValues(meals, (meal) => meal.totals.calories || 0);
+    const consumedProtein = sumValues(meals, (meal) => meal.totals.protein || 0);
+    const consumedFiber = sumValues(meals, (meal) => meal.totals.fiber || 0);
+    const consumedFat = sumValues(meals, (meal) => meal.totals.fat || 0);
+    const consumedCarbs = sumValues(meals, (meal) => meal.totals.carbs || 0);
+    const consumedSugar = sumValues(meals, (meal) => meal.totals.sugar || 0);
+    const consumedAddedSugar = sumValues(meals, (meal) => meal.totals.addedSugar || 0);
+
+    const caloriesBurned = sumValues(
+      sportEntries,
+      (entry) => entry.caloriesBurned || 0
+    );
+
+    const waterConsumedMl = sumValues(
+      waterEntries,
+      (entry) => entry.amountMl || 0
+    );
+
+    const maintenanceCalories = profile.maintenanceCalories || 1360;
+    const waterTargetMl = profile.waterTargetMl || 2500;
 
     const calorieBudget = maintenanceCalories + caloriesBurned;
     const remainingCalories = calorieBudget - consumedCalories;
-    const remainingWaterMl = waterTargetMl - waterConsumedMl;
 
     res.json({
       date,
-      profile: req.user.profile,
+
+      profile,
+
+      preferences: req.user.preferences,
+
       calories: {
-        maintenanceCalories,
-        consumedCalories,
-        caloriesBurned,
-        calorieBudget,
-        remainingCalories,
+        maintenanceCalories: roundValue(maintenanceCalories),
+        consumedCalories: roundValue(consumedCalories),
+        caloriesBurned: roundValue(caloriesBurned),
+        calorieBudget: roundValue(calorieBudget),
+        remainingCalories: roundValue(remainingCalories),
       },
+
+      nutrients: {
+        protein: buildNutrientSummary(
+          consumedProtein,
+          profile.proteinTarget || 80
+        ),
+        fiber: buildNutrientSummary(
+          consumedFiber,
+          profile.fiberTarget || 25
+        ),
+        fat: buildNutrientSummary(
+          consumedFat,
+          profile.fatTarget || 45
+        ),
+        carbs: buildNutrientSummary(
+          consumedCarbs,
+          profile.carbsTarget || 170
+        ),
+        sugar: buildNutrientSummary(
+          consumedSugar,
+          profile.sugarLimit || 50
+        ),
+        addedSugar: buildNutrientSummary(
+          consumedAddedSugar,
+          profile.addedSugarLimit || 25
+        ),
+      },
+
       water: {
         waterTargetMl,
         waterConsumedMl,
-        remainingWaterMl,
+        remainingWaterMl: waterTargetMl - waterConsumedMl,
       },
+
       weight: latestWeight,
       activeFast,
       meals,
