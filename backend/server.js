@@ -27,6 +27,7 @@ app.use("/api/sport", require("./routes/sportRoutes"));
 app.use("/api/fasts", require("./routes/fastRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 app.use("/api/statistics", require("./routes/statisticsRoutes"));
+app.use("/api/messages", require("./routes/messageRoutes"));
 
 const PORT = process.env.PORT || 5000;
 
