@@ -137,6 +137,77 @@ router.post("/", protect, async (req, res) => {
   }
 });
 
+router.put("/:id", protect, async (req, res) => {
+  try {
+    const { date = getToday(), time, mealType, items } = req.body;
+
+    if (!time || !mealType || !items || items.length === 0) {
+      return res.status(400).json({
+        message: "Time, meal type and items are required",
+      });
+    }
+
+    const calculatedItems = [];
+
+    for (const item of items) {
+      const food = await Food.findOne({
+        _id: item.foodId,
+        user: req.user._id,
+      });
+
+      if (!food) {
+        return res.status(404).json({
+          message: `Food not found: ${item.foodId}`,
+        });
+      }
+
+      const nutrition = calculateNutrition(food, item.quantityGrams);
+
+      calculatedItems.push({
+        food: food._id,
+        foodName: food.name,
+        quantityGrams: item.quantityGrams,
+        ...nutrition,
+      });
+    }
+
+    const rawTotals = calculateTotals(calculatedItems);
+
+    const totals = Object.fromEntries(
+      Object.entries(rawTotals).map(([key, value]) => [key, roundValue(value)])
+    );
+
+    const updatedMeal = await Meal.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        user: req.user._id,
+      },
+      {
+        date,
+        time,
+        nextMealTime: addFourHours(time),
+        mealType,
+        items: calculatedItems,
+        totals,
+      },
+      { new: true }
+    );
+
+    if (!updatedMeal) {
+      return res.status(404).json({
+        message: "Meal not found",
+      });
+    }
+
+    res.json(updatedMeal);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to update meal",
+      error: error.message,
+    });
+  }
+});
+
 router.delete("/:id", protect, async (req, res) => {
   try {
     const meal = await Meal.findOneAndDelete({
