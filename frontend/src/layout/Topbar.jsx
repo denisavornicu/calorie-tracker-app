@@ -3,8 +3,18 @@ import { useTranslation } from "react-i18next";
 import LanguageToggle from "../components/LanguageToggle";
 import ThemeToggle from "../components/ThemeToggle";
 
+const formatTodayDate = (language) => {
+  const locale = language === "en" ? "en-US" : "ro-RO";
+
+  return new Intl.DateTimeFormat(locale, {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+  }).format(new Date());
+};
+
 const Topbar = ({ onMenuClick }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <header className="topbar">
@@ -14,7 +24,7 @@ const Topbar = ({ onMenuClick }) => {
 
       <div className="topbar-title">
         <h1>{t("appName")}</h1>
-        <p>{t("dashboard")}</p>
+        <p>{formatTodayDate(i18n.language)}</p>
       </div>
 
       <div className="topbar-actions">

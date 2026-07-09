@@ -38,6 +38,14 @@ const foodSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    saturatedFat: {
+      type: Number,
+      default: 0,
+    },
+    unsaturatedFat: {
+      type: Number,
+      default: 0,
+    },
     carbs: {
       type: Number,
       default: 0,

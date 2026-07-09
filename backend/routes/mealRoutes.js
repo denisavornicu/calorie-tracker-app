@@ -29,6 +29,8 @@ const calculateNutrition = (food, quantityGrams) => {
     protein: roundValue(food.protein * factor),
     fiber: roundValue(food.fiber * factor),
     fat: roundValue(food.fat * factor),
+    saturatedFat: roundValue((food.saturatedFat || 0) * factor),
+    unsaturatedFat: roundValue((food.unsaturatedFat || 0) * factor),
     carbs: roundValue(food.carbs * factor),
     sugar: roundValue(food.sugar * factor),
     addedSugar: roundValue(food.addedSugar * factor),
@@ -42,6 +44,8 @@ const calculateTotals = (items) => {
       totals.protein += item.protein;
       totals.fiber += item.fiber;
       totals.fat += item.fat;
+      totals.saturatedFat += item.saturatedFat || 0;
+      totals.unsaturatedFat += item.unsaturatedFat || 0;
       totals.carbs += item.carbs;
       totals.sugar += item.sugar;
       totals.addedSugar += item.addedSugar;
@@ -53,6 +57,8 @@ const calculateTotals = (items) => {
       protein: 0,
       fiber: 0,
       fat: 0,
+      saturatedFat: 0,
+      unsaturatedFat: 0,
       carbs: 0,
       sugar: 0,
       addedSugar: 0,

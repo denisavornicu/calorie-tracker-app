@@ -56,6 +56,16 @@ const userSchema = new mongoose.Schema(
         default: 45,
       },
 
+      saturatedFatLimit: {
+        type: Number,
+        default: 15,
+      },
+
+      unsaturatedFatTarget: {
+        type: Number,
+        default: 30,
+    },
+
       carbsTarget: {
         type: Number,
         default: 170,

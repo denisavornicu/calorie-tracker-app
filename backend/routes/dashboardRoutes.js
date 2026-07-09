@@ -61,6 +61,15 @@ router.get("/today", protect, async (req, res) => {
     const consumedProtein = sumValues(meals, (meal) => meal.totals.protein || 0);
     const consumedFiber = sumValues(meals, (meal) => meal.totals.fiber || 0);
     const consumedFat = sumValues(meals, (meal) => meal.totals.fat || 0);
+    const consumedSaturatedFat = sumValues(
+      meals,
+      (meal) => meal.totals.saturatedFat || 0
+    );
+
+    const consumedUnsaturatedFat = sumValues(
+      meals,
+      (meal) => meal.totals.unsaturatedFat || 0
+    );
     const consumedCarbs = sumValues(meals, (meal) => meal.totals.carbs || 0);
     const consumedSugar = sumValues(meals, (meal) => meal.totals.sugar || 0);
     const consumedAddedSugar = sumValues(meals, (meal) => meal.totals.addedSugar || 0);
@@ -80,6 +89,23 @@ router.get("/today", protect, async (req, res) => {
 
     const calorieBudget = maintenanceCalories + caloriesBurned;
     const remainingCalories = calorieBudget - consumedCalories;
+
+    const yesterdayStart = new Date();
+    yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    yesterdayStart.setHours(0, 0, 0, 0);
+
+    const yesterdayEnd = new Date();
+    yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
+    yesterdayEnd.setHours(23, 59, 59, 999);
+
+    const yesterdayFast = await FastEntry.findOne({
+    user: req.user._id,
+    status: "completed",
+    endTime: {
+    $gte: yesterdayStart,
+    $lte: yesterdayEnd,
+  },
+}).sort({ endTime: -1 });
 
     res.json({
       date,
@@ -109,6 +135,14 @@ router.get("/today", protect, async (req, res) => {
           consumedFat,
           profile.fatTarget || 45
         ),
+        saturatedFat: buildNutrientSummary(
+          consumedSaturatedFat,
+          profile.saturatedFatLimit || 15
+        ),
+        unsaturatedFat: buildNutrientSummary(
+          consumedUnsaturatedFat,
+          profile.unsaturatedFatTarget || 30
+        ),
         carbs: buildNutrientSummary(
           consumedCarbs,
           profile.carbsTarget || 170
@@ -131,6 +165,7 @@ router.get("/today", protect, async (req, res) => {
 
       weight: latestWeight,
       activeFast,
+      yesterdayFast,
       meals,
       waterEntries,
       sportEntries,
