@@ -34,6 +34,10 @@ const messageSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    readAt: {
+      type: Date,
+      default: null,
+    },
     metadata: {
       model: {
         type: String,

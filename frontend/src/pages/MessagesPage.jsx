@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bot, NotebookPen, Search, Send, Trash2, UserRound } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axiosConfig";
@@ -30,6 +31,7 @@ const quickPrompts = [
 const MessagesPage = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const messagesEndRef = useRef(null);
 
   const [contacts, setContacts] = useState([]);
@@ -93,6 +95,10 @@ const MessagesPage = () => {
 
       const response = await api.get(`/messages/thread?${params.toString()}`);
       setMessages(response.data);
+
+      if (contact.type === "user" && contact.unreadCount > 0) {
+        await fetchContacts();
+      }
     } catch (error) {
       console.error("Failed to fetch thread", error);
       setError(t("messagesLoadFailed"));
@@ -104,6 +110,31 @@ const MessagesPage = () => {
   useEffect(() => {
     fetchContacts();
   }, []);
+
+  useEffect(() => {
+    if (contacts.length === 0) return;
+
+    const type = searchParams.get("type");
+    const contactId = searchParams.get("contactId");
+
+    if (type === "assistant") {
+      setActiveContactId("assistant");
+      return;
+    }
+
+    if (type === "journal") {
+      setActiveContactId("journal");
+      return;
+    }
+
+    if (type === "user" && contactId) {
+      const contactExists = contacts.some((contact) => contact.id === contactId);
+
+      if (contactExists) {
+        setActiveContactId(contactId);
+      }
+    }
+  }, [contacts, searchParams]);
 
   useEffect(() => {
     if (activeContact) {
@@ -232,6 +263,12 @@ const MessagesPage = () => {
                     {contact.lastMessage?.content || contact.subtitle || t("messagesPlaceholder")}
                   </small>
                 </span>
+
+                {contact.unreadCount > 0 && (
+                  <em className="conversation-unread-badge">
+                    {contact.unreadCount > 9 ? "9+" : contact.unreadCount}
+                  </em>
+                )}
               </button>
             ))
           )}

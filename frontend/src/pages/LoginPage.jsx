@@ -1,4 +1,4 @@
-//frontend/src/pages/LoginPage.jsx
+// frontend/src/pages/LoginPage.jsx
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -13,8 +13,8 @@ const LoginPage = () => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    username: "Denisa",
-    password: "denisa",
+    username: "",
+    password: "",
   });
 
   const [error, setError] = useState("");
@@ -62,7 +62,9 @@ const LoginPage = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
-              placeholder="Denisa"
+              placeholder={t("username")}
+              autoComplete="username"
+              required
             />
           </label>
 
@@ -73,7 +75,9 @@ const LoginPage = () => {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="denisa"
+              placeholder={t("password")}
+              autoComplete="current-password"
+              required
             />
           </label>
 

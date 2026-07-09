@@ -19,13 +19,23 @@ const formatTime = (date) => {
   return new Date(date).toTimeString().slice(0, 5);
 };
 
+const normalizeUser = (user) => {
+  if (!user) return null;
+
+  return {
+    _id: user._id,
+    username: user.username,
+  };
+};
+
 const normalizeMessage = (message) => ({
   _id: message._id,
   channelType: message.channelType,
-  sender: message.sender,
-  recipient: message.recipient,
+  sender: normalizeUser(message.sender) || message.sender,
+  recipient: normalizeUser(message.recipient) || message.recipient,
   role: message.role,
   content: message.content,
+  readAt: message.readAt,
   metadata: message.metadata,
   createdAt: message.createdAt,
   time: formatTime(message.createdAt),
@@ -55,6 +65,20 @@ const getConversationFilter = (userId, type, contactId) => {
   };
 };
 
+const getUnreadFilter = (userId, contactId = null) => {
+  const filter = {
+    channelType: "user",
+    recipient: userId,
+    readAt: null,
+  };
+
+  if (contactId) {
+    filter.sender = contactId;
+  }
+
+  return filter;
+};
+
 const buildUserContext = async (user) => {
   const today = getToday();
 
@@ -62,9 +86,13 @@ const buildUserContext = async (user) => {
     await Promise.all([
       Meal.find({ user: user._id }).sort({ date: -1, time: -1 }).limit(8),
       Food.find({ user: user._id }).sort({ updatedAt: -1 }).limit(18),
-      SportEntry.find({ user: user._id }).sort({ date: -1, createdAt: -1 }).limit(8),
+      SportEntry.find({ user: user._id })
+        .sort({ date: -1, createdAt: -1 })
+        .limit(8),
       WaterEntry.find({ user: user._id, date: today }).sort({ time: 1 }),
-      WeightEntry.find({ user: user._id }).sort({ date: -1, createdAt: -1 }).limit(5),
+      WeightEntry.find({ user: user._id })
+        .sort({ date: -1, createdAt: -1 })
+        .limit(5),
     ]);
 
   const profile = user.profile || {};
@@ -107,7 +135,7 @@ const buildUserContext = async (user) => {
     : "Nu există greutăți înregistrate.";
 
   return `
-Utilizator: ${user.username}
+Persoană conectată: ${user.username}
 Preferințe: limbă=${preferences.language || "ro"}, temă=${preferences.themeStyle || "pink-purple"}.
 Profil: sex=${profile.gender || "female"}, vârstă=${profile.age || 22}, înălțime=${profile.heightCm || 150} cm, greutate profil=${profile.weightKg || 44} kg.
 Targeturi: menținere=${profile.maintenanceCalories || 1360} kcal, proteine=${profile.proteinTarget || 80}g, fibre=${profile.fiberTarget || 25}g, grăsimi=${profile.fatTarget || 45}g, glucide=${profile.carbsTarget || 170}g, apă=${profile.waterTargetMl || 2500}ml.
@@ -141,8 +169,7 @@ const extractGeminiText = (data) => {
 
 const callGemini = async ({ user, userMessage, history }) => {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
-  const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.1-flash-lite";
+  const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
 
   if (!apiKey) {
     return {
@@ -157,7 +184,7 @@ const callGemini = async ({ user, userMessage, history }) => {
 
   const systemPrompt = `
 Ești asistentul AI integrat într-o aplicație personală de monitorizare calorii, mese, alimente, apă, greutate, fasting și sport.
-Răspunde în română, cu ton cald, clar și practic, dacă utilizatorul nu cere explicit engleză.
+Răspunde în română, cu ton cald, clar și practic, dacă persoana nu cere explicit engleză.
 Folosește contextul din aplicație pentru recomandări de mese, alimente, idei de combinații, exerciții fizice ușoare/moderate și interpretarea jurnalului.
 Nu inventa date care nu există în context. Dacă informațiile sunt incomplete, spune ce lipsește.
 Nu oferi diagnostice medicale și nu recomanda restricții extreme, post prelungit sau comportamente nesigure. Pentru simptome medicale, recomandă consult specializat.
@@ -177,7 +204,7 @@ Nu oferi diagnostice medicale și nu recomanda restricții extreme, post prelung
       role: "user",
       parts: [
         {
-          text: `Context din aplicație:\n${appContext}\n\nÎntrebarea/utilizatorul a scris:\n${userMessage}`,
+          text: `Context din aplicație:\n${appContext}\n\nMesajul persoanei:\n${userMessage}`,
         },
       ],
     },
@@ -237,14 +264,22 @@ router.get("/contacts", protect, async (req, res) => {
       users.map(async (contact) => {
         const lastMessage = await Message.findOne(
           getConversationFilter(req.user._id, "user", contact._id)
-        ).sort({ createdAt: -1 });
+        )
+          .populate("sender", "username")
+          .populate("recipient", "username")
+          .sort({ createdAt: -1 });
+
+        const unreadCount = await Message.countDocuments(
+          getUnreadFilter(req.user._id, contact._id)
+        );
 
         return {
           id: contact._id,
           type: "user",
           name: contact.username,
           avatar: contact.username.slice(0, 2).toUpperCase(),
-          subtitle: "Conversație utilizator",
+          subtitle: "Conversație cu utilizator",
+          unreadCount,
           lastMessage: lastMessage ? normalizeMessage(lastMessage) : null,
         };
       })
@@ -257,6 +292,7 @@ router.get("/contacts", protect, async (req, res) => {
         name: "Asistent AI",
         avatar: "AI",
         subtitle: "Recomandări de mese, alimente și sport",
+        unreadCount: 0,
         lastMessage: assistantLastMessage
           ? normalizeMessage(assistantLastMessage)
           : null,
@@ -267,6 +303,7 @@ router.get("/contacts", protect, async (req, res) => {
         name: "Jurnal de nutriție",
         avatar: "JN",
         subtitle: "Mesaje private către tine",
+        unreadCount: 0,
         lastMessage: journalLastMessage ? normalizeMessage(journalLastMessage) : null,
       },
       ...userContacts,
@@ -279,6 +316,83 @@ router.get("/contacts", protect, async (req, res) => {
   }
 });
 
+router.get("/notifications", protect, async (req, res) => {
+  try {
+    const unreadMessages = await Message.find(getUnreadFilter(req.user._id))
+      .populate("sender", "username")
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    const conversationsMap = new Map();
+
+    unreadMessages.forEach((message) => {
+      const senderId = String(message.sender?._id || message.sender);
+
+      if (!senderId || senderId === "null") {
+        return;
+      }
+
+      const current = conversationsMap.get(senderId) || {
+        contactId: senderId,
+        contactName: message.sender?.username || "Utilizator",
+        unreadCount: 0,
+        lastMessage: normalizeMessage(message),
+      };
+
+      current.unreadCount += 1;
+
+      if (new Date(message.createdAt) > new Date(current.lastMessage.createdAt)) {
+        current.lastMessage = normalizeMessage(message);
+      }
+
+      conversationsMap.set(senderId, current);
+    });
+
+    const conversations = Array.from(conversationsMap.values()).sort(
+      (a, b) => new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt)
+    );
+
+    const totalUnread = conversations.reduce(
+      (total, conversation) => total + conversation.unreadCount,
+      0
+    );
+
+    res.json({
+      totalUnread,
+      conversations,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch notifications",
+      error: error.message,
+    });
+  }
+});
+
+const clearMessageNotifications = async (req, res) => {
+  try {
+    const contactId = req.query.contactId || req.body?.contactId || null;
+
+    const result = await Message.updateMany(
+      getUnreadFilter(req.user._id, contactId),
+      { readAt: new Date() }
+    );
+
+    res.json({
+      message: "Notifications cleared",
+      clearedCount: result.modifiedCount || 0,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to clear notifications",
+      error: error.message,
+    });
+  }
+};
+
+router.patch("/notifications/read", protect, clearMessageNotifications);
+router.delete("/notifications", protect, clearMessageNotifications);
+
 router.get("/thread", protect, async (req, res) => {
   try {
     const { type = "assistant", contactId } = req.query;
@@ -287,9 +401,18 @@ router.get("/thread", protect, async (req, res) => {
       return res.status(400).json({ message: "Contact id is required" });
     }
 
+    if (type === "user") {
+      await Message.updateMany(getUnreadFilter(req.user._id, contactId), {
+        readAt: new Date(),
+      });
+    }
+
     const messages = await Message.find(
       getConversationFilter(req.user._id, type, contactId)
-    ).sort({ createdAt: 1 });
+    )
+      .populate("sender", "username")
+      .populate("recipient", "username")
+      .sort({ createdAt: 1 });
 
     res.json(messages.map(normalizeMessage));
   } catch (error) {
@@ -322,9 +445,14 @@ router.post("/", protect, async (req, res) => {
       recipient,
       role: "user",
       content: content.trim(),
+      readAt: channelType === "journal" ? new Date() : null,
     });
 
-    res.status(201).json(normalizeMessage(message));
+    const hydratedMessage = await Message.findById(message._id)
+      .populate("sender", "username")
+      .populate("recipient", "username");
+
+    res.status(201).json(normalizeMessage(hydratedMessage));
   } catch (error) {
     res.status(500).json({
       message: "Failed to send message",
@@ -348,6 +476,7 @@ router.post("/assistant", protect, async (req, res) => {
       recipient: null,
       role: "user",
       content: content.trim(),
+      readAt: new Date(),
     });
 
     const previousMessages = await Message.find({
@@ -369,7 +498,7 @@ router.post("/assistant", protect, async (req, res) => {
     } catch (error) {
       aiResult = {
         text: `Nu am putut obține răspuns de la Gemini: ${error.message}`,
-        model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+        model: process.env.GEMINI_MODEL || "gemini-flash-latest",
         error: true,
       };
     }
@@ -381,15 +510,24 @@ router.post("/assistant", protect, async (req, res) => {
       recipient: req.user._id,
       role: "assistant",
       content: aiResult.text,
+      readAt: new Date(),
       metadata: {
         model: aiResult.model,
         error: aiResult.error,
       },
     });
 
+    const hydratedUserMessage = await Message.findById(userMessage._id)
+      .populate("sender", "username")
+      .populate("recipient", "username");
+
+    const hydratedAssistantMessage = await Message.findById(assistantMessage._id)
+      .populate("sender", "username")
+      .populate("recipient", "username");
+
     res.status(201).json({
-      userMessage: normalizeMessage(userMessage),
-      assistantMessage: normalizeMessage(assistantMessage),
+      userMessage: normalizeMessage(hydratedUserMessage),
+      assistantMessage: normalizeMessage(hydratedAssistantMessage),
     });
   } catch (error) {
     res.status(500).json({

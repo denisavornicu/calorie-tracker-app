@@ -1,5 +1,7 @@
 //frontend/src/pages/RegisterPage.jsx
 
+// frontend/src/pages/RegisterPage.jsx
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -62,7 +64,9 @@ const RegisterPage = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
-              placeholder="Denisa"
+              placeholder={t("username")}
+              autoComplete="username"
+              required
             />
           </label>
 
@@ -73,7 +77,9 @@ const RegisterPage = () => {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="denisa"
+              placeholder={t("password")}
+              autoComplete="new-password"
+              required
             />
           </label>
 
