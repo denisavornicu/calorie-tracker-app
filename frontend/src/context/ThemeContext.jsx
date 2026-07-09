@@ -1,3 +1,5 @@
+// frontend/src/context/ThemeContext.jsx
+
 import { createContext, useContext, useEffect, useState } from "react";
 
 const ThemeContext = createContext();
@@ -38,6 +40,10 @@ export const ThemeProvider = ({ children }) => {
     setColorMode((currentMode) => (currentMode === "light" ? "dark" : "light"));
   };
 
+  const changeColorMode = (mode) => {
+    setColorMode(mode);
+  };
+
   const changeThemeStyle = (style) => {
     setThemeStyle(style);
   };
@@ -54,6 +60,7 @@ export const ThemeProvider = ({ children }) => {
         themeStyle,
         sidebarCollapsed,
         toggleTheme,
+        changeColorMode,
         changeThemeStyle,
         toggleSidebar,
       }}

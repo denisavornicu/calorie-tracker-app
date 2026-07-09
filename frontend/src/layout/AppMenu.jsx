@@ -1,3 +1,5 @@
+//frontend/src/layout/AppMenu.jsx
+
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   Home,
@@ -52,7 +54,7 @@ const AppMenu = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          <button type="button" className="icon-only-button" onClick={onClose}>
+          <button type="button" className="topbar-icon-button" onClick={onClose}>
             <X size={20} />
           </button>
         </div>

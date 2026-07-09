@@ -1,3 +1,5 @@
+// backend/models/Food.js
+
 const mongoose = require("mongoose");
 
 const foodSchema = new mongoose.Schema(
@@ -20,6 +22,7 @@ const foodSchema = new mongoose.Schema(
     category: {
       type: String,
       default: "Other",
+      trim: true,
     },
     calories: {
       type: Number,

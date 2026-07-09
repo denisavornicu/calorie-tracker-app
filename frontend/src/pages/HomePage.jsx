@@ -1,6 +1,16 @@
+//frontend/src/pages/HomePage.jsx
+
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import api from "../api/axiosConfig";
+
+const getToday = () => {
+  const date = new Date();
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
+};
+
+const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
 
 const formatTodayDate = (language) => {
   const locale = language === "en" ? "en-US" : "ro-RO";
@@ -55,6 +65,11 @@ const HomePage = () => {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fastLoading, setFastLoading] = useState(false);
+  const [weightForm, setWeightForm] = useState({
+    weightKg: "",
+    notes: "",
+  });
+  const [savingWeight, setSavingWeight] = useState(false);
 
   const fetchDashboard = async () => {
     try {
@@ -83,6 +98,59 @@ const HomePage = () => {
     }
   };
 
+  const handleStopFast = async () => {
+    if (!dashboard?.activeFast?._id) return;
+
+    try {
+      setFastLoading(true);
+      await api.put(`/fasts/stop/${dashboard.activeFast._id}`);
+      await fetchDashboard();
+    } catch (error) {
+      console.error("Failed to stop fast", error);
+    } finally {
+      setFastLoading(false);
+    }
+  };
+
+  const handleWeightChange = (event) => {
+    const { name, value } = event.target;
+
+    setWeightForm((currentData) => ({
+      ...currentData,
+      [name]: value,
+    }));
+  };
+
+  const handleSaveWeight = async (event) => {
+    event.preventDefault();
+
+    if (!weightForm.weightKg) {
+      return;
+    }
+
+    try {
+      setSavingWeight(true);
+
+      await api.post("/weight", {
+        date: getToday(),
+        time: getCurrentTime(),
+        weightKg: Number(weightForm.weightKg),
+        notes: weightForm.notes,
+      });
+
+      setWeightForm({
+        weightKg: "",
+        notes: "",
+      });
+
+      await fetchDashboard();
+    } catch (error) {
+      console.error("Failed to save weight", error);
+    } finally {
+      setSavingWeight(false);
+    }
+  };
+
   useEffect(() => {
     fetchDashboard();
   }, []);
@@ -92,6 +160,7 @@ const HomePage = () => {
   const water = dashboard?.water;
   const activeFast = dashboard?.activeFast;
   const yesterdayFast = dashboard?.yesterdayFast;
+  const latestWeight = dashboard?.weight;
 
   if (loading) {
     return (
@@ -155,12 +224,12 @@ const HomePage = () => {
               {formatValue(nutrients?.fat?.target, "g")}
             </p>
             <p>
-              {t("saturatedFatShort")}:{" "}
+              {t("saturatedFatShort")}: {" "}
               {formatValue(nutrients?.saturatedFat?.consumed, "g")} /{" "}
               {formatValue(nutrients?.saturatedFat?.target, "g")}
             </p>
             <p>
-              {t("unsaturatedFatShort")}:{" "}
+              {t("unsaturatedFatShort")}: {" "}
               {formatValue(nutrients?.unsaturatedFat?.consumed, "g")} /{" "}
               {formatValue(nutrients?.unsaturatedFat?.target, "g")}
             </p>
@@ -181,7 +250,7 @@ const HomePage = () => {
               {formatValue(nutrients?.sugar?.target, "g")}
             </p>
             <p>
-              {t("addedSugarShort")}:{" "}
+              {t("addedSugarShort")}: {" "}
               {formatValue(nutrients?.addedSugar?.consumed, "g")} /{" "}
               {formatValue(nutrients?.addedSugar?.target, "g")}
             </p>
@@ -209,7 +278,14 @@ const HomePage = () => {
           )}
 
           {activeFast ? (
-            <p>{t("activeFast")}</p>
+            <button
+              type="button"
+              className="secondary-button compact"
+              onClick={handleStopFast}
+              disabled={fastLoading}
+            >
+              {fastLoading ? t("loading") : t("stopFast")}
+            </button>
           ) : (
             <button
               type="button"
@@ -221,6 +297,55 @@ const HomePage = () => {
             </button>
           )}
         </article>
+      </div>
+
+      <div className="content-card weight-entry-card">
+        <div className="section-title">
+          <div>
+            <h2>{t("recordWeight")}</h2>
+            <p>{t("recordWeightSubtitle")}</p>
+          </div>
+        </div>
+
+        {latestWeight && (
+          <div className="info-box weight-latest-box">
+            <p>
+              {t("latestWeight")}: <strong>{latestWeight.weightKg} kg</strong> · {" "}
+              {t("loggedAt")}: {latestWeight.date} {latestWeight.time || ""}
+            </p>
+          </div>
+        )}
+
+        <form onSubmit={handleSaveWeight} className="weight-form">
+          <label>
+            {t("weight")}
+            <input
+              className="form-input"
+              type="number"
+              step="0.1"
+              name="weightKg"
+              value={weightForm.weightKg}
+              onChange={handleWeightChange}
+              placeholder="44.0"
+            />
+          </label>
+
+          <label>
+            {t("notes")}
+            <input
+              className="form-input"
+              type="text"
+              name="notes"
+              value={weightForm.notes}
+              onChange={handleWeightChange}
+              placeholder={t("optional")}
+            />
+          </label>
+
+          <button type="submit" className="primary-button" disabled={savingWeight}>
+            {savingWeight ? t("loading") : t("saveWeight")}
+          </button>
+        </form>
       </div>
     </section>
   );

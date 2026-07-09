@@ -1,3 +1,5 @@
+// frontend/src/components/LanguageToggle.jsx
+
 import { useTranslation } from "react-i18next";
 
 const LanguageToggle = () => {

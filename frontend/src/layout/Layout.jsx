@@ -1,3 +1,5 @@
+//frontend/src/layout/Layout.jsx
+
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Topbar from "./Topbar";
@@ -14,10 +16,7 @@ const Layout = () => {
         <Outlet />
       </main>
 
-      <AppMenu
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-      />
+      <AppMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
     </div>
   );
 };

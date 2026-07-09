@@ -1,3 +1,5 @@
+// backend/routes/sportRoutes.js
+
 const express = require("express");
 const SportEntry = require("../models/SportEntry");
 const { protect } = require("../middleware/authMiddleware");
@@ -5,6 +7,56 @@ const { protect } = require("../middleware/authMiddleware");
 const router = express.Router();
 
 const getToday = () => new Date().toISOString().slice(0, 10);
+
+router.get("/history", protect, async (req, res) => {
+  try {
+    const {
+      search = "",
+      date = "",
+      activityName = "",
+      minCalories = "",
+      maxCalories = "",
+      limit = 80,
+    } = req.query;
+
+    const query = { user: req.user._id };
+
+    if (date) {
+      query.date = date;
+    }
+
+    if (activityName) {
+      query.activityName = new RegExp(`^${activityName}$`, "i");
+    }
+
+    if (search.trim()) {
+      query.activityName = new RegExp(search.trim(), "i");
+    }
+
+    if (minCalories !== "" || maxCalories !== "") {
+      query.caloriesBurned = {};
+
+      if (minCalories !== "") {
+        query.caloriesBurned.$gte = Number(minCalories);
+      }
+
+      if (maxCalories !== "") {
+        query.caloriesBurned.$lte = Number(maxCalories);
+      }
+    }
+
+    const entries = await SportEntry.find(query)
+      .sort({ date: -1, createdAt: -1 })
+      .limit(Number(limit || 80));
+
+    res.json(entries);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch sport history",
+      error: error.message,
+    });
+  }
+});
 
 router.get("/", protect, async (req, res) => {
   try {
@@ -17,7 +69,10 @@ router.get("/", protect, async (req, res) => {
 
     res.json(entries);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch sport entries", error: error.message });
+    res.status(500).json({
+      message: "Failed to fetch sport entries",
+      error: error.message,
+    });
   }
 });
 
@@ -41,14 +96,17 @@ router.post("/", protect, async (req, res) => {
       user: req.user._id,
       date,
       activityName,
-      durationMinutes,
-      caloriesBurned,
+      durationMinutes: Number(durationMinutes || 0),
+      caloriesBurned: Number(caloriesBurned || 0),
       notes,
     });
 
     res.status(201).json(entry);
   } catch (error) {
-    res.status(500).json({ message: "Failed to create sport entry", error: error.message });
+    res.status(500).json({
+      message: "Failed to create sport entry",
+      error: error.message,
+    });
   }
 });
 
@@ -76,8 +134,8 @@ router.put("/:id", protect, async (req, res) => {
       {
         date,
         activityName,
-        durationMinutes,
-        caloriesBurned,
+        durationMinutes: Number(durationMinutes || 0),
+        caloriesBurned: Number(caloriesBurned || 0),
         notes,
       },
       { new: true }
@@ -111,7 +169,10 @@ router.delete("/:id", protect, async (req, res) => {
 
     res.json({ message: "Sport entry deleted" });
   } catch (error) {
-    res.status(500).json({ message: "Failed to delete sport entry", error: error.message });
+    res.status(500).json({
+      message: "Failed to delete sport entry",
+      error: error.message,
+    });
   }
 });
 

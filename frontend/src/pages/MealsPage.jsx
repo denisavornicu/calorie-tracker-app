@@ -1,14 +1,17 @@
+//frontend/src/pages/MealsPage.jsx
+
 import { useEffect, useMemo, useState } from "react";
-import { Edit3, Plus, Trash2, X } from "lucide-react";
+import { Edit3, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import api from "../api/axiosConfig";
 
-const getToday = () => new Date().toISOString().slice(0, 10);
-
-const getCurrentTime = () => {
-  const now = new Date();
-  return now.toTimeString().slice(0, 5);
+const getToday = () => {
+  const date = new Date();
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
 };
+
+const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
 
 const roundValue = (value) => Math.round(Number(value || 0) * 10) / 10;
 
@@ -20,18 +23,68 @@ const emptyMealForm = {
   mealType: "Breakfast",
 };
 
+const emptyManualForm = {
+  foodName: "",
+  calories: "",
+  protein: "",
+  fiber: "",
+};
+
+const nutritionKeys = [
+  "calories",
+  "protein",
+  "fiber",
+  "fat",
+  "saturatedFat",
+  "unsaturatedFat",
+  "carbs",
+  "sugar",
+  "addedSugar",
+];
+
+const buildLocalItemFromSavedItem = (item) => {
+  const foodId =
+    typeof item.food === "object" && item.food !== null
+      ? item.food._id
+      : item.food || item.foodId || "";
+
+  return {
+    localId: crypto.randomUUID(),
+    foodId,
+    source: item.source || (foodId ? "food" : "manual"),
+    foodName: item.foodName,
+    quantityGrams: item.quantityGrams || 0,
+    calories: item.calories || 0,
+    protein: item.protein || 0,
+    fiber: item.fiber || 0,
+    fat: item.fat || 0,
+    saturatedFat: item.saturatedFat || 0,
+    unsaturatedFat: item.unsaturatedFat || 0,
+    carbs: item.carbs || 0,
+    sugar: item.sugar || 0,
+    addedSugar: item.addedSugar || 0,
+  };
+};
+
 const MealsPage = () => {
   const { t } = useTranslation();
 
   const [foods, setFoods] = useState([]);
   const [meals, setMeals] = useState([]);
+  const [mealHistory, setMealHistory] = useState([]);
   const [formData, setFormData] = useState(emptyMealForm);
   const [selectedFoodId, setSelectedFoodId] = useState("");
   const [quantityGrams, setQuantityGrams] = useState("");
+  const [manualForm, setManualForm] = useState(emptyManualForm);
   const [mealItems, setMealItems] = useState([]);
   const [editingMealId, setEditingMealId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [historyFilters, setHistoryFilters] = useState({
+    search: "",
+    mealType: "",
+    date: "",
+  });
 
   const fetchFoods = async () => {
     const response = await api.get("/foods");
@@ -43,9 +96,20 @@ const MealsPage = () => {
     setMeals(response.data);
   };
 
+  const fetchMealHistory = async (filters = historyFilters) => {
+    const params = new URLSearchParams();
+
+    if (filters.search) params.append("search", filters.search);
+    if (filters.mealType) params.append("mealType", filters.mealType);
+    if (filters.date) params.append("date", filters.date);
+
+    const response = await api.get(`/meals/history?${params.toString()}`);
+    setMealHistory(response.data);
+  };
+
   const fetchInitialData = async () => {
     try {
-      await Promise.all([fetchFoods(), fetchMeals(getToday())]);
+      await Promise.all([fetchFoods(), fetchMeals(getToday()), fetchMealHistory()]);
     } catch (error) {
       console.error("Failed to fetch meals page data", error);
     } finally {
@@ -76,15 +140,9 @@ const MealsPage = () => {
   const totals = useMemo(() => {
     return mealItems.reduce(
       (acc, item) => {
-        acc.calories += item.calories;
-        acc.protein += item.protein;
-        acc.fiber += item.fiber;
-        acc.fat += item.fat;
-        acc.saturatedFat += item.saturatedFat;
-        acc.unsaturatedFat += item.unsaturatedFat;
-        acc.carbs += item.carbs;
-        acc.sugar += item.sugar;
-        acc.addedSugar += item.addedSugar;
+        nutritionKeys.forEach((key) => {
+          acc[key] += Number(item[key] || 0);
+        });
 
         return acc;
       },
@@ -119,6 +177,42 @@ const MealsPage = () => {
     }
   };
 
+  const handleManualChange = (event) => {
+    const { name, value } = event.target;
+
+    setManualForm((currentForm) => ({
+      ...currentForm,
+      [name]: value,
+    }));
+  };
+
+  const handleHistoryFilterChange = (event) => {
+    const { name, value } = event.target;
+
+    const nextFilters = {
+      ...historyFilters,
+      [name]: value,
+    };
+
+    setHistoryFilters(nextFilters);
+    fetchMealHistory(nextFilters).catch((error) => {
+      console.error("Failed to fetch meal history", error);
+    });
+  };
+
+  const clearHistoryFilters = () => {
+    const clearedFilters = {
+      search: "",
+      mealType: "",
+      date: "",
+    };
+
+    setHistoryFilters(clearedFilters);
+    fetchMealHistory(clearedFilters).catch((error) => {
+      console.error("Failed to fetch meal history", error);
+    });
+  };
+
   const handleAddFoodToMeal = () => {
     if (!selectedFoodId || !quantityGrams || Number(quantityGrams) <= 0) {
       return;
@@ -135,6 +229,7 @@ const MealsPage = () => {
     const newItem = {
       localId: crypto.randomUUID(),
       foodId: selectedFood._id,
+      source: "food",
       foodName: selectedFood.name,
       quantityGrams: Number(quantityGrams),
       ...nutrition,
@@ -145,6 +240,36 @@ const MealsPage = () => {
     setQuantityGrams("");
   };
 
+  const handleAddManualEstimate = () => {
+    const calories = Number(manualForm.calories || 0);
+    const protein = Number(manualForm.protein || 0);
+    const fiber = Number(manualForm.fiber || 0);
+
+    if (!manualForm.foodName.trim() && calories <= 0 && protein <= 0 && fiber <= 0) {
+      return;
+    }
+
+    const newItem = {
+      localId: crypto.randomUUID(),
+      foodId: "",
+      source: "manual",
+      foodName: manualForm.foodName.trim() || t("manualMealName"),
+      quantityGrams: 0,
+      calories: roundValue(calories),
+      protein: roundValue(protein),
+      fiber: roundValue(fiber),
+      fat: 0,
+      saturatedFat: 0,
+      unsaturatedFat: 0,
+      carbs: 0,
+      sugar: 0,
+      addedSugar: 0,
+    };
+
+    setMealItems((currentItems) => [...currentItems, newItem]);
+    setManualForm(emptyManualForm);
+  };
+
   const handleRemoveItem = (localId) => {
     setMealItems((currentItems) =>
       currentItems.filter((item) => item.localId !== localId)
@@ -152,85 +277,105 @@ const MealsPage = () => {
   };
 
   const resetMealForm = () => {
-  setFormData({
-    date: getToday(),
-    time: getCurrentTime(),
-    mealType: "Breakfast",
-  });
+    setFormData({
+      date: getToday(),
+      time: getCurrentTime(),
+      mealType: "Breakfast",
+    });
 
-  setSelectedFoodId("");
-  setQuantityGrams("");
-  setMealItems([]);
-  setEditingMealId(null);
-};
+    setSelectedFoodId("");
+    setQuantityGrams("");
+    setManualForm(emptyManualForm);
+    setMealItems([]);
+    setEditingMealId(null);
+  };
 
-  const handleSubmitMeal = async (event) => {
-  event.preventDefault();
-
-  if (mealItems.length === 0) {
-    return;
-  }
-
-  try {
-    setSaving(true);
-
-    const payload = {
-      date: formData.date,
-      time: formData.time,
-      mealType: formData.mealType,
-      items: mealItems.map((item) => ({
+  const buildPayloadItem = (item) => {
+    if (item.foodId) {
+      return {
         foodId: item.foodId,
         quantityGrams: item.quantityGrams,
-      })),
-    };
-
-    if (editingMealId) {
-      await api.put(`/meals/${editingMealId}`, payload);
-    } else {
-      await api.post("/meals", payload);
+      };
     }
 
-    await fetchMeals(formData.date);
-    resetMealForm();
-  } catch (error) {
-    console.error("Failed to save meal", error);
-  } finally {
-    setSaving(false);
-  }
-};
+    return {
+      foodName: item.foodName,
+      quantityGrams: item.quantityGrams,
+      calories: item.calories,
+      protein: item.protein,
+      fiber: item.fiber,
+      fat: item.fat,
+      saturatedFat: item.saturatedFat,
+      unsaturatedFat: item.unsaturatedFat,
+      carbs: item.carbs,
+      sugar: item.sugar,
+      addedSugar: item.addedSugar,
+    };
+  };
+
+  const handleSubmitMeal = async (event) => {
+    event.preventDefault();
+
+    if (mealItems.length === 0) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const payload = {
+        date: formData.date,
+        time: formData.time,
+        mealType: formData.mealType,
+        items: mealItems.map(buildPayloadItem),
+      };
+
+      if (editingMealId) {
+        await api.put(`/meals/${editingMealId}`, payload);
+      } else {
+        await api.post("/meals", payload);
+      }
+
+      await Promise.all([fetchMeals(formData.date), fetchMealHistory()]);
+      resetMealForm();
+    } catch (error) {
+      console.error("Failed to save meal", error);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleEditMeal = (meal) => {
-  setEditingMealId(meal._id);
+    setEditingMealId(meal._id);
 
-  setFormData({
-    date: meal.date,
-    time: meal.time,
-    mealType: meal.mealType,
-  });
+    setFormData({
+      date: meal.date,
+      time: meal.time,
+      mealType: meal.mealType,
+    });
 
-  const editableItems = meal.items.map((item) => ({
-    localId: crypto.randomUUID(),
-    foodId: item.food || item.foodId,
-    foodName: item.foodName,
-    quantityGrams: item.quantityGrams,
-    calories: item.calories || 0,
-    protein: item.protein || 0,
-    fiber: item.fiber || 0,
-    fat: item.fat || 0,
-    saturatedFat: item.saturatedFat || 0,
-    unsaturatedFat: item.unsaturatedFat || 0,
-    carbs: item.carbs || 0,
-    sugar: item.sugar || 0,
-    addedSugar: item.addedSugar || 0,
-  }));
+    setMealItems(meal.items.map(buildLocalItemFromSavedItem));
 
-  setMealItems(editableItems);
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth",
-  });
-};
+  const handleUseAgain = async (meal) => {
+    setEditingMealId(null);
+    setFormData((currentForm) => ({
+      ...currentForm,
+      mealType: meal.mealType,
+      time: getCurrentTime(),
+    }));
+    setMealItems(meal.items.map(buildLocalItemFromSavedItem));
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
   const handleDeleteMeal = async (mealId) => {
     const confirmed = window.confirm(t("confirmDeleteMeal"));
@@ -241,7 +386,7 @@ const MealsPage = () => {
 
     try {
       await api.delete(`/meals/${mealId}`);
-      await fetchMeals(formData.date);
+      await Promise.all([fetchMeals(formData.date), fetchMealHistory()]);
     } catch (error) {
       console.error("Failed to delete meal", error);
     }
@@ -315,44 +460,119 @@ const MealsPage = () => {
             </label>
           </div>
 
-          <div className="add-food-row">
-            <label>
-              {t("selectFood")}
-              <select
-                className="form-select"
-                value={selectedFoodId}
-                onChange={(event) => setSelectedFoodId(event.target.value)}
+          <div className="meal-entry-panels">
+            <div className="add-food-row">
+              <div className="panel-heading">
+                <h3>{t("addFoodFromDatabase")}</h3>
+              </div>
+
+              <label>
+                {t("selectFood")}
+                <select
+                  className="form-select"
+                  value={selectedFoodId}
+                  onChange={(event) => setSelectedFoodId(event.target.value)}
+                >
+                  <option value="">{t("chooseFood")}</option>
+
+                  {foods.map((food) => (
+                    <option key={food._id} value={food._id}>
+                      {food.name} - {food.calories || 0} kcal / 100g
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                {t("quantityGrams")}
+                <input
+                  className="form-input"
+                  type="number"
+                  step="0.1"
+                  value={quantityGrams}
+                  onChange={(event) => setQuantityGrams(event.target.value)}
+                  placeholder="100"
+                />
+              </label>
+
+              <button
+                type="button"
+                className="secondary-button add-item-button"
+                onClick={handleAddFoodToMeal}
               >
-                <option value="">{t("chooseFood")}</option>
+                <Plus size={17} />
+                {t("add")}
+              </button>
+            </div>
 
-                {foods.map((food) => (
-                  <option key={food._id} value={food._id}>
-                    {food.name} - {food.calories || 0} kcal / 100g
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="manual-entry-card">
+              <div className="panel-heading">
+                <h3>{t("addManualEstimate")}</h3>
+                <p>{t("manualMealSubtitle")}</p>
+              </div>
 
-            <label>
-              {t("quantityGrams")}
-              <input
-                className="form-input"
-                type="number"
-                step="0.1"
-                value={quantityGrams}
-                onChange={(event) => setQuantityGrams(event.target.value)}
-                placeholder="100"
-              />
-            </label>
+              <div className="manual-entry-grid">
+                <label>
+                  {t("manualMealName")}
+                  <input
+                    className="form-input"
+                    type="text"
+                    name="foodName"
+                    value={manualForm.foodName}
+                    onChange={handleManualChange}
+                    placeholder={t("manualMealNamePlaceholder")}
+                  />
+                </label>
 
-            <button
-              type="button"
-              className="secondary-button add-item-button"
-              onClick={handleAddFoodToMeal}
-            >
-              <Plus size={17} />
-              {t("add")}
-            </button>
+                <label>
+                  {t("calories")}
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="0.1"
+                    name="calories"
+                    value={manualForm.calories}
+                    onChange={handleManualChange}
+                    placeholder="0"
+                  />
+                </label>
+
+                <label>
+                  {t("protein")}
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="0.1"
+                    name="protein"
+                    value={manualForm.protein}
+                    onChange={handleManualChange}
+                    placeholder="0"
+                  />
+                </label>
+
+                <label>
+                  {t("fiber")}
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="0.1"
+                    name="fiber"
+                    value={manualForm.fiber}
+                    onChange={handleManualChange}
+                    placeholder="0"
+                  />
+                </label>
+              </div>
+
+              <button
+                type="button"
+                className="secondary-button add-item-button"
+                onClick={handleAddManualEstimate}
+              >
+                <Plus size={17} />
+                {t("addManualEstimate")}
+              </button>
+            </div>
           </div>
 
           {foods.length === 0 && (
@@ -370,7 +590,11 @@ const MealsPage = () => {
                   <article key={item.localId} className="meal-item-card">
                     <div>
                       <h4>{item.foodName}</h4>
-                      <p>{item.quantityGrams} g</p>
+                      <p>
+                        {item.source === "manual"
+                          ? t("addManualEstimate")
+                          : `${item.quantityGrams} g`}
+                      </p>
                     </div>
 
                     <div className="meal-item-values">
@@ -406,13 +630,9 @@ const MealsPage = () => {
           )}
 
           <div className="form-actions">
-            <button
-  type="button"
-  className="secondary-button"
-  onClick={resetMealForm}
->
-  {editingMealId ? t("cancelEdit") : t("cancel")}
-</button>
+            <button type="button" className="secondary-button" onClick={resetMealForm}>
+              {editingMealId ? t("cancelEdit") : t("cancel")}
+            </button>
 
             <button
               type="submit"
@@ -450,22 +670,22 @@ const MealsPage = () => {
                   </div>
 
                   <div className="saved-meal-actions">
-  <button
-    type="button"
-    className="small-icon-button"
-    onClick={() => handleEditMeal(meal)}
-  >
-    <Edit3 size={16} />
-  </button>
+                    <button
+                      type="button"
+                      className="small-icon-button"
+                      onClick={() => handleEditMeal(meal)}
+                    >
+                      <Edit3 size={16} />
+                    </button>
 
-  <button
-    type="button"
-    className="small-icon-button danger"
-    onClick={() => handleDeleteMeal(meal._id)}
-  >
-    <Trash2 size={16} />
-  </button>
-</div>
+                    <button
+                      type="button"
+                      className="small-icon-button danger"
+                      onClick={() => handleDeleteMeal(meal._id)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="nutrition-pills">
@@ -480,7 +700,104 @@ const MealsPage = () => {
                 <div className="saved-meal-foods">
                   {meal.items.map((item, index) => (
                     <p key={`${meal._id}-${index}`}>
-                      {item.foodName} · {item.quantityGrams} g
+                      {item.foodName} · {item.source === "manual" ? t("addManualEstimate") : `${item.quantityGrams} g`}
+                    </p>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="content-card history-card">
+        <div className="section-title">
+          <div>
+            <h2>{t("mealHistory")}</h2>
+            <p>{t("mealHistorySubtitle")}</p>
+          </div>
+        </div>
+
+        <div className="filter-grid history-filter-grid">
+          <label>
+            {t("search")}
+            <input
+              className="form-input"
+              type="text"
+              name="search"
+              value={historyFilters.search}
+              onChange={handleHistoryFilterChange}
+              placeholder={t("searchPlaceholder")}
+            />
+          </label>
+
+          <label>
+            {t("mealType")}
+            <select
+              className="form-select"
+              name="mealType"
+              value={historyFilters.mealType}
+              onChange={handleHistoryFilterChange}
+            >
+              <option value="">{t("all")}</option>
+              {mealTypes.map((type) => (
+                <option key={type} value={type}>
+                  {t(type)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            {t("date")}
+            <input
+              className="form-input"
+              type="date"
+              name="date"
+              value={historyFilters.date}
+              onChange={handleHistoryFilterChange}
+            />
+          </label>
+
+          <button type="button" className="secondary-button" onClick={clearHistoryFilters}>
+            {t("clearFilters")}
+          </button>
+        </div>
+
+        {mealHistory.length === 0 ? (
+          <div className="empty-state">
+            <p>{t("noMealHistory")}</p>
+          </div>
+        ) : (
+          <div className="saved-meals-list history-list">
+            {mealHistory.map((meal) => (
+              <article key={meal._id} className="saved-meal-card">
+                <div className="saved-meal-header">
+                  <div>
+                    <h3>{t(meal.mealType)}</h3>
+                    <p>{meal.date} · {meal.time}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="small-action-button"
+                    onClick={() => handleUseAgain(meal)}
+                  >
+                    <RotateCcw size={15} />
+                    {t("useAgain")}
+                  </button>
+                </div>
+
+                <div className="nutrition-pills">
+                  <span>{meal.totals.calories} kcal</span>
+                  <span>{meal.totals.protein}g {t("proteinShort")}</span>
+                  <span>{meal.totals.fiber}g {t("fiberShort")}</span>
+                </div>
+
+                <div className="saved-meal-foods">
+                  {meal.items.map((item, index) => (
+                    <p key={`${meal._id}-history-${index}`}>
+                      {item.foodName} · {item.source === "manual" ? t("addManualEstimate") : `${item.quantityGrams} g`}
                     </p>
                   ))}
                 </div>

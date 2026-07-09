@@ -1,3 +1,5 @@
+// backend/routes/authRoutes.js
+
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -41,6 +43,7 @@ router.post("/register", async (req, res) => {
       _id: user._id,
       username: user.username,
       profile: user.profile,
+      preferences: user.preferences,
       token: generateToken(user._id),
     });
   } catch (error) {
@@ -75,6 +78,7 @@ router.post("/login", async (req, res) => {
       _id: user._id,
       username: user.username,
       profile: user.profile,
+      preferences: user.preferences,
       token: generateToken(user._id),
     });
   } catch (error) {

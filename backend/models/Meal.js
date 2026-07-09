@@ -1,3 +1,5 @@
+// backend/models/Meal.js
+
 const mongoose = require("mongoose");
 
 const mealItemSchema = new mongoose.Schema(
@@ -5,6 +7,12 @@ const mealItemSchema = new mongoose.Schema(
     food: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Food",
+      default: null,
+    },
+    source: {
+      type: String,
+      enum: ["food", "manual"],
+      default: "food",
     },
     foodName: {
       type: String,
@@ -12,7 +20,7 @@ const mealItemSchema = new mongoose.Schema(
     },
     quantityGrams: {
       type: Number,
-      required: true,
+      default: 0,
     },
     calories: {
       type: Number,

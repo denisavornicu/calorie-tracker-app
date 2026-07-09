@@ -1,3 +1,5 @@
+// backend/routes/foodRoutes.js
+
 const express = require("express");
 const Food = require("../models/Food");
 const { protect } = require("../middleware/authMiddleware");
@@ -9,7 +11,10 @@ router.get("/", protect, async (req, res) => {
     const foods = await Food.find({ user: req.user._id }).sort({ name: 1 });
     res.json(foods);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch foods", error: error.message });
+    res.status(500).json({
+      message: "Failed to fetch foods",
+      error: error.message,
+    });
   }
 });
 
@@ -22,7 +27,10 @@ router.post("/", protect, async (req, res) => {
 
     res.status(201).json(food);
   } catch (error) {
-    res.status(500).json({ message: "Failed to create food", error: error.message });
+    res.status(500).json({
+      message: "Failed to create food",
+      error: error.message,
+    });
   }
 });
 
@@ -40,7 +48,10 @@ router.put("/:id", protect, async (req, res) => {
 
     res.json(food);
   } catch (error) {
-    res.status(500).json({ message: "Failed to update food", error: error.message });
+    res.status(500).json({
+      message: "Failed to update food",
+      error: error.message,
+    });
   }
 });
 
@@ -57,7 +68,10 @@ router.delete("/:id", protect, async (req, res) => {
 
     res.json({ message: "Food deleted" });
   } catch (error) {
-    res.status(500).json({ message: "Failed to delete food", error: error.message });
+    res.status(500).json({
+      message: "Failed to delete food",
+      error: error.message,
+    });
   }
 });
 

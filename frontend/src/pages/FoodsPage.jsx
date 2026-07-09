@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+//frontend/src/pages/FoodsPage.jsx
+
+import { useEffect, useMemo, useState } from "react";
 import { Edit3, Plus, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import api from "../api/axiosConfig";
@@ -31,6 +33,12 @@ const numericFields = [
   "addedSugar",
 ];
 
+const uniqueValues = (items, selector) => {
+  return [...new Set(items.map(selector).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b)
+  );
+};
+
 const FoodsPage = () => {
   const { t } = useTranslation();
 
@@ -40,6 +48,11 @@ const FoodsPage = () => {
   const [editingFoodId, setEditingFoodId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [filters, setFilters] = useState({
+    search: "",
+    category: "",
+    brand: "",
+  });
 
   const fetchFoods = async () => {
     try {
@@ -56,6 +69,35 @@ const FoodsPage = () => {
     fetchFoods();
   }, []);
 
+  const categories = useMemo(
+    () => uniqueValues(foods, (food) => food.category || "Other"),
+    [foods]
+  );
+
+  const brands = useMemo(
+    () => uniqueValues(foods, (food) => food.brand || ""),
+    [foods]
+  );
+
+  const filteredFoods = useMemo(() => {
+    const normalizedSearch = filters.search.trim().toLowerCase();
+
+    return foods.filter((food) => {
+      const matchesSearch =
+        !normalizedSearch ||
+        food.name?.toLowerCase().includes(normalizedSearch) ||
+        food.brand?.toLowerCase().includes(normalizedSearch) ||
+        food.category?.toLowerCase().includes(normalizedSearch);
+
+      const matchesCategory =
+        !filters.category || (food.category || "Other") === filters.category;
+
+      const matchesBrand = !filters.brand || (food.brand || "") === filters.brand;
+
+      return matchesSearch && matchesCategory && matchesBrand;
+    });
+  }, [foods, filters]);
+
   const resetForm = () => {
     setFormData(emptyFoodForm);
     setEditingFoodId(null);
@@ -69,6 +111,23 @@ const FoodsPage = () => {
       ...currentData,
       [name]: value,
     }));
+  };
+
+  const handleFilterChange = (event) => {
+    const { name, value } = event.target;
+
+    setFilters((currentFilters) => ({
+      ...currentFilters,
+      [name]: value,
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      search: "",
+      category: "",
+      brand: "",
+    });
   };
 
   const buildPayload = () => {
@@ -131,6 +190,11 @@ const FoodsPage = () => {
     });
 
     setShowForm(true);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
   const handleDelete = async (foodId) => {
@@ -214,125 +278,23 @@ const FoodsPage = () => {
                 />
               </label>
 
-              <label>
-                {t("calories")}
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.1"
-                  name="calories"
-                  value={formData.calories}
-                  onChange={handleChange}
-                  placeholder="0"
-                />
-              </label>
-
-              <label>
-                {t("protein")}
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.1"
-                  name="protein"
-                  value={formData.protein}
-                  onChange={handleChange}
-                  placeholder="0"
-                />
-              </label>
-
-              <label>
-                {t("fiber")}
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.1"
-                  name="fiber"
-                  value={formData.fiber}
-                  onChange={handleChange}
-                  placeholder="0"
-                />
-              </label>
-
-              <label>
-                {t("fat")}
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.1"
-                  name="fat"
-                  value={formData.fat}
-                  onChange={handleChange}
-                  placeholder="0"
-                />
-              </label>
-
-              <label>
-                {t("saturatedFat")}
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.1"
-                  name="saturatedFat"
-                  value={formData.saturatedFat}
-                  onChange={handleChange}
-                  placeholder="0"
-                />
-              </label>
-
-              <label>
-                {t("unsaturatedFat")}
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.1"
-                  name="unsaturatedFat"
-                  value={formData.unsaturatedFat}
-                  onChange={handleChange}
-                  placeholder="0"
-                />
-              </label>
-
-              <label>
-                {t("carbs")}
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.1"
-                  name="carbs"
-                  value={formData.carbs}
-                  onChange={handleChange}
-                  placeholder="0"
-                />
-              </label>
-
-              <label>
-                {t("sugar")}
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.1"
-                  name="sugar"
-                  value={formData.sugar}
-                  onChange={handleChange}
-                  placeholder="0"
-                />
-              </label>
-
-              <label>
-                {t("addedSugar")}
-                <input
-                  className="form-input"
-                  type="number"
-                  step="0.1"
-                  name="addedSugar"
-                  value={formData.addedSugar}
-                  onChange={handleChange}
-                  placeholder="0"
-                />
-              </label>
+              {numericFields.map((field) => (
+                <label key={field}>
+                  {t(field)}
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="0.1"
+                    name={field}
+                    value={formData[field]}
+                    onChange={handleChange}
+                    placeholder="0"
+                  />
+                </label>
+              ))}
             </div>
 
-            <label>
+            <label className="full-label">
               {t("notes")}
               <textarea
                 className="form-textarea"
@@ -357,6 +319,66 @@ const FoodsPage = () => {
         </div>
       )}
 
+      <div className="content-card filter-card">
+        <div className="section-title compact-section-title">
+          <div>
+            <h2>{t("foodFilters")}</h2>
+          </div>
+        </div>
+
+        <div className="filter-grid">
+          <label>
+            {t("search")}
+            <input
+              className="form-input"
+              type="text"
+              name="search"
+              value={filters.search}
+              onChange={handleFilterChange}
+              placeholder={t("searchPlaceholder")}
+            />
+          </label>
+
+          <label>
+            {t("category")}
+            <select
+              className="form-select"
+              name="category"
+              value={filters.category}
+              onChange={handleFilterChange}
+            >
+              <option value="">{t("allCategories")}</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            {t("brand")}
+            <select
+              className="form-select"
+              name="brand"
+              value={filters.brand}
+              onChange={handleFilterChange}
+            >
+              <option value="">{t("allBrands")}</option>
+              {brands.map((brand) => (
+                <option key={brand} value={brand}>
+                  {brand}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button type="button" className="secondary-button" onClick={clearFilters}>
+            {t("clearFilters")}
+          </button>
+        </div>
+      </div>
+
       <div className="content-card">
         <div className="section-title">
           <div>
@@ -367,21 +389,23 @@ const FoodsPage = () => {
 
         {loading ? (
           <p>{t("loading")}</p>
-        ) : foods.length === 0 ? (
+        ) : filteredFoods.length === 0 ? (
           <div className="empty-state">
-            <p>{t("noFoodsYet")}</p>
-            <button
-              type="button"
-              className="primary-button small"
-              onClick={() => setShowForm(true)}
-            >
-              + {t("addFood")}
-            </button>
+            <p>{foods.length === 0 ? t("noFoodsYet") : t("noFoodsMatch")}</p>
+            {foods.length === 0 && (
+              <button
+                type="button"
+                className="primary-button small"
+                onClick={() => setShowForm(true)}
+              >
+                + {t("addFood")}
+              </button>
+            )}
           </div>
         ) : (
           <>
             <div className="food-card-list">
-              {foods.map((food) => (
+              {filteredFoods.map((food) => (
                 <article key={food._id} className="food-item-card">
                   <div className="food-item-header">
                     <div>
@@ -438,7 +462,7 @@ const FoodsPage = () => {
                 </thead>
 
                 <tbody>
-                  {foods.map((food) => (
+                  {filteredFoods.map((food) => (
                     <tr key={food._id}>
                       <td>
                         <strong>{food.name}</strong>

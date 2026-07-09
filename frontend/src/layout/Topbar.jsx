@@ -1,3 +1,5 @@
+//frontend/src/layout/Topbar.jsx
+
 import { Bell, Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import LanguageToggle from "../components/LanguageToggle";

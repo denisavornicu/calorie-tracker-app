@@ -1,3 +1,5 @@
+// backend/routes/waterRoutes.js
+
 const express = require("express");
 const WaterEntry = require("../models/WaterEntry");
 const { protect } = require("../middleware/authMiddleware");
@@ -17,7 +19,10 @@ router.get("/", protect, async (req, res) => {
 
     res.json(entries);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch water entries", error: error.message });
+    res.status(500).json({
+      message: "Failed to fetch water entries",
+      error: error.message,
+    });
   }
 });
 
@@ -35,13 +40,16 @@ router.post("/", protect, async (req, res) => {
       user: req.user._id,
       date,
       time,
-      amountMl,
+      amountMl: Number(amountMl),
       type,
     });
 
     res.status(201).json(entry);
   } catch (error) {
-    res.status(500).json({ message: "Failed to create water entry", error: error.message });
+    res.status(500).json({
+      message: "Failed to create water entry",
+      error: error.message,
+    });
   }
 });
 
@@ -58,7 +66,10 @@ router.delete("/:id", protect, async (req, res) => {
 
     res.json({ message: "Water entry deleted" });
   } catch (error) {
-    res.status(500).json({ message: "Failed to delete water entry", error: error.message });
+    res.status(500).json({
+      message: "Failed to delete water entry",
+      error: error.message,
+    });
   }
 });
 

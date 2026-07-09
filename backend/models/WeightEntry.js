@@ -1,3 +1,5 @@
+// backend/models/WeightEntry.js
+
 const mongoose = require("mongoose");
 
 const weightEntrySchema = new mongoose.Schema(
@@ -8,6 +10,10 @@ const weightEntrySchema = new mongoose.Schema(
       required: true,
     },
     date: {
+      type: String,
+      required: true,
+    },
+    time: {
       type: String,
       required: true,
     },

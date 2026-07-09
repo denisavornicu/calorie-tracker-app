@@ -1,3 +1,5 @@
+// backend/routes/fastRoutes.js
+
 const express = require("express");
 const FastEntry = require("../models/FastEntry");
 const { protect } = require("../middleware/authMiddleware");
@@ -12,7 +14,10 @@ router.get("/", protect, async (req, res) => {
 
     res.json(entries);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch fast entries", error: error.message });
+    res.status(500).json({
+      message: "Failed to fetch fast entries",
+      error: error.message,
+    });
   }
 });
 
@@ -25,7 +30,10 @@ router.get("/active", protect, async (req, res) => {
 
     res.json(activeFast);
   } catch (error) {
-    res.status(500).json({ message: "Failed to fetch active fast", error: error.message });
+    res.status(500).json({
+      message: "Failed to fetch active fast",
+      error: error.message,
+    });
   }
 });
 
@@ -52,7 +60,10 @@ router.post("/start", protect, async (req, res) => {
 
     res.status(201).json(fast);
   } catch (error) {
-    res.status(500).json({ message: "Failed to start fast", error: error.message });
+    res.status(500).json({
+      message: "Failed to start fast",
+      error: error.message,
+    });
   }
 });
 
@@ -81,7 +92,10 @@ router.put("/stop/:id", protect, async (req, res) => {
 
     res.json(fast);
   } catch (error) {
-    res.status(500).json({ message: "Failed to stop fast", error: error.message });
+    res.status(500).json({
+      message: "Failed to stop fast",
+      error: error.message,
+    });
   }
 });
 

@@ -1,3 +1,5 @@
+// backend/models/WaterEntry.js
+
 const mongoose = require("mongoose");
 
 const waterEntrySchema = new mongoose.Schema(

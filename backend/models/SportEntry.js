@@ -1,3 +1,5 @@
+//backend/models/SportEntry.js
+
 const mongoose = require("mongoose");
 
 const sportEntrySchema = new mongoose.Schema(
@@ -14,6 +16,7 @@ const sportEntrySchema = new mongoose.Schema(
     activityName: {
       type: String,
       required: true,
+      trim: true,
     },
     durationMinutes: {
       type: Number,

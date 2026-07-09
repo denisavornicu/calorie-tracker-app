@@ -1,3 +1,5 @@
+// backend/routes/dashboardRoutes.js
+
 const express = require("express");
 const Meal = require("../models/Meal");
 const WaterEntry = require("../models/WaterEntry");
@@ -10,10 +12,10 @@ const router = express.Router();
 
 const getToday = () => new Date().toISOString().slice(0, 10);
 
-const roundValue = (value) => Math.round(value * 10) / 10;
+const roundValue = (value) => Math.round(Number(value || 0) * 10) / 10;
 
 const sumValues = (items, selector) => {
-  return items.reduce((total, item) => total + selector(item), 0);
+  return items.reduce((total, item) => total + Number(selector(item) || 0), 0);
 };
 
 const buildNutrientSummary = (consumed, target) => {
@@ -48,7 +50,7 @@ router.get("/today", protect, async (req, res) => {
 
     const latestWeight = await WeightEntry.findOne({
       user: req.user._id,
-    }).sort({ date: -1, createdAt: -1 });
+    }).sort({ date: -1, time: -1, createdAt: -1 });
 
     const activeFast = await FastEntry.findOne({
       user: req.user._id,
@@ -65,14 +67,16 @@ router.get("/today", protect, async (req, res) => {
       meals,
       (meal) => meal.totals.saturatedFat || 0
     );
-
     const consumedUnsaturatedFat = sumValues(
       meals,
       (meal) => meal.totals.unsaturatedFat || 0
     );
     const consumedCarbs = sumValues(meals, (meal) => meal.totals.carbs || 0);
     const consumedSugar = sumValues(meals, (meal) => meal.totals.sugar || 0);
-    const consumedAddedSugar = sumValues(meals, (meal) => meal.totals.addedSugar || 0);
+    const consumedAddedSugar = sumValues(
+      meals,
+      (meal) => meal.totals.addedSugar || 0
+    );
 
     const caloriesBurned = sumValues(
       sportEntries,
@@ -99,21 +103,18 @@ router.get("/today", protect, async (req, res) => {
     yesterdayEnd.setHours(23, 59, 59, 999);
 
     const yesterdayFast = await FastEntry.findOne({
-    user: req.user._id,
-    status: "completed",
-    endTime: {
-    $gte: yesterdayStart,
-    $lte: yesterdayEnd,
-  },
-}).sort({ endTime: -1 });
+      user: req.user._id,
+      status: "completed",
+      endTime: {
+        $gte: yesterdayStart,
+        $lte: yesterdayEnd,
+      },
+    }).sort({ endTime: -1 });
 
     res.json({
       date,
-
       profile,
-
       preferences: req.user.preferences,
-
       calories: {
         maintenanceCalories: roundValue(maintenanceCalories),
         consumedCalories: roundValue(consumedCalories),
@@ -121,20 +122,10 @@ router.get("/today", protect, async (req, res) => {
         calorieBudget: roundValue(calorieBudget),
         remainingCalories: roundValue(remainingCalories),
       },
-
       nutrients: {
-        protein: buildNutrientSummary(
-          consumedProtein,
-          profile.proteinTarget || 80
-        ),
-        fiber: buildNutrientSummary(
-          consumedFiber,
-          profile.fiberTarget || 25
-        ),
-        fat: buildNutrientSummary(
-          consumedFat,
-          profile.fatTarget || 45
-        ),
+        protein: buildNutrientSummary(consumedProtein, profile.proteinTarget || 80),
+        fiber: buildNutrientSummary(consumedFiber, profile.fiberTarget || 25),
+        fat: buildNutrientSummary(consumedFat, profile.fatTarget || 45),
         saturatedFat: buildNutrientSummary(
           consumedSaturatedFat,
           profile.saturatedFatLimit || 15
@@ -143,26 +134,18 @@ router.get("/today", protect, async (req, res) => {
           consumedUnsaturatedFat,
           profile.unsaturatedFatTarget || 30
         ),
-        carbs: buildNutrientSummary(
-          consumedCarbs,
-          profile.carbsTarget || 170
-        ),
-        sugar: buildNutrientSummary(
-          consumedSugar,
-          profile.sugarLimit || 50
-        ),
+        carbs: buildNutrientSummary(consumedCarbs, profile.carbsTarget || 170),
+        sugar: buildNutrientSummary(consumedSugar, profile.sugarLimit || 50),
         addedSugar: buildNutrientSummary(
           consumedAddedSugar,
           profile.addedSugarLimit || 25
         ),
       },
-
       water: {
-        waterTargetMl,
-        waterConsumedMl,
-        remainingWaterMl: waterTargetMl - waterConsumedMl,
+        waterTargetMl: roundValue(waterTargetMl),
+        waterConsumedMl: roundValue(waterConsumedMl),
+        remainingWaterMl: roundValue(waterTargetMl - waterConsumedMl),
       },
-
       weight: latestWeight,
       activeFast,
       yesterdayFast,

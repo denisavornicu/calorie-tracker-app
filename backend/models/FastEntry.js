@@ -1,3 +1,5 @@
+//backend/models/FastEntry.js
+
 const mongoose = require("mongoose");
 
 const fastEntrySchema = new mongoose.Schema(

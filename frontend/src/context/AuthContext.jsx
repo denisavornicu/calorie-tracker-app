@@ -1,3 +1,5 @@
+// frontend/src/context/AuthContext.jsx
+
 import { createContext, useContext, useEffect, useState } from "react";
 import api from "../api/axiosConfig";
 
@@ -11,6 +13,11 @@ export const AuthProvider = ({ children }) => {
 
   const [loading, setLoading] = useState(false);
 
+  const saveUser = (nextUser) => {
+    localStorage.setItem("user", JSON.stringify(nextUser));
+    setUser(nextUser);
+  };
+
   const login = async (username, password) => {
     setLoading(true);
 
@@ -21,9 +28,7 @@ export const AuthProvider = ({ children }) => {
       });
 
       localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data));
-
-      setUser(response.data);
+      saveUser(response.data);
 
       return { success: true };
     } catch (error) {
@@ -46,9 +51,7 @@ export const AuthProvider = ({ children }) => {
       });
 
       localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data));
-
-      setUser(response.data);
+      saveUser(response.data);
 
       return { success: true };
     } catch (error) {
@@ -59,6 +62,18 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const updateStoredUser = (updatedUserData) => {
+    setUser((currentUser) => {
+      const nextUser = {
+        ...currentUser,
+        ...updatedUserData,
+      };
+
+      localStorage.setItem("user", JSON.stringify(nextUser));
+      return nextUser;
+    });
   };
 
   const logout = () => {
@@ -83,6 +98,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
+        updateStoredUser,
         isAuthenticated: Boolean(user),
       }}
     >

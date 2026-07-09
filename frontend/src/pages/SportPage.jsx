@@ -1,9 +1,15 @@
+//frontend/src/pages/SportPage.jsx
+
 import { useEffect, useMemo, useState } from "react";
-import { Dumbbell, Edit3, Flame, Plus, Trash2 } from "lucide-react";
+import { Dumbbell, Edit3, Flame, RotateCcw, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import api from "../api/axiosConfig";
 
-const getToday = () => new Date().toISOString().slice(0, 10);
+const getToday = () => {
+  const date = new Date();
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
+};
 
 const emptySportForm = {
   date: getToday(),
@@ -17,10 +23,18 @@ const SportPage = () => {
   const { t } = useTranslation();
 
   const [entries, setEntries] = useState([]);
+  const [historyEntries, setHistoryEntries] = useState([]);
   const [formData, setFormData] = useState(emptySportForm);
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [historyFilters, setHistoryFilters] = useState({
+    search: "",
+    date: "",
+    activityName: "",
+    minCalories: "",
+    maxCalories: "",
+  });
 
   const totalCaloriesBurned = useMemo(() => {
     return entries.reduce(
@@ -36,6 +50,14 @@ const SportPage = () => {
     );
   }, [entries]);
 
+  const activityOptions = useMemo(() => {
+    const activities = [...entries, ...historyEntries]
+      .map((entry) => entry.activityName)
+      .filter(Boolean);
+
+    return [...new Set(activities)].sort((a, b) => a.localeCompare(b));
+  }, [entries, historyEntries]);
+
   const fetchSportEntries = async (date = formData.date) => {
     try {
       const response = await api.get(`/sport?date=${date}`);
@@ -47,8 +69,29 @@ const SportPage = () => {
     }
   };
 
+  const fetchSportHistory = async (filters = historyFilters) => {
+    const params = new URLSearchParams();
+
+    if (filters.search) params.append("search", filters.search);
+    if (filters.date) params.append("date", filters.date);
+    if (filters.activityName) params.append("activityName", filters.activityName);
+    if (filters.minCalories) params.append("minCalories", filters.minCalories);
+    if (filters.maxCalories) params.append("maxCalories", filters.maxCalories);
+
+    const response = await api.get(`/sport/history?${params.toString()}`);
+    setHistoryEntries(response.data);
+  };
+
   useEffect(() => {
-    fetchSportEntries(getToday());
+    const fetchInitialData = async () => {
+      try {
+        await Promise.all([fetchSportEntries(getToday()), fetchSportHistory()]);
+      } catch (error) {
+        console.error("Failed to fetch sport data", error);
+      }
+    };
+
+    fetchInitialData();
   }, []);
 
   const handleChange = async (event) => {
@@ -62,6 +105,35 @@ const SportPage = () => {
     if (name === "date") {
       await fetchSportEntries(value);
     }
+  };
+
+  const handleHistoryFilterChange = (event) => {
+    const { name, value } = event.target;
+
+    const nextFilters = {
+      ...historyFilters,
+      [name]: value,
+    };
+
+    setHistoryFilters(nextFilters);
+    fetchSportHistory(nextFilters).catch((error) => {
+      console.error("Failed to fetch sport history", error);
+    });
+  };
+
+  const clearHistoryFilters = () => {
+    const clearedFilters = {
+      search: "",
+      date: "",
+      activityName: "",
+      minCalories: "",
+      maxCalories: "",
+    };
+
+    setHistoryFilters(clearedFilters);
+    fetchSportHistory(clearedFilters).catch((error) => {
+      console.error("Failed to fetch sport history", error);
+    });
   };
 
   const resetForm = () => {
@@ -104,7 +176,7 @@ const SportPage = () => {
         await api.post("/sport", payload);
       }
 
-      await fetchSportEntries(formData.date);
+      await Promise.all([fetchSportEntries(formData.date), fetchSportHistory()]);
       resetForm();
     } catch (error) {
       console.error("Failed to save sport entry", error);
@@ -130,6 +202,22 @@ const SportPage = () => {
     });
   };
 
+  const handleUseAgain = (entry) => {
+    setEditingEntryId(null);
+    setFormData({
+      date: formData.date || getToday(),
+      activityName: entry.activityName || "",
+      durationMinutes: entry.durationMinutes ?? "",
+      caloriesBurned: entry.caloriesBurned ?? "",
+      notes: entry.notes || "",
+    });
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
   const handleDelete = async (entryId) => {
     const confirmed = window.confirm(t("confirmDeleteSportEntry"));
 
@@ -139,7 +227,7 @@ const SportPage = () => {
 
     try {
       await api.delete(`/sport/${entryId}`);
-      await fetchSportEntries(formData.date);
+      await Promise.all([fetchSportEntries(formData.date), fetchSportHistory()]);
     } catch (error) {
       console.error("Failed to delete sport entry", error);
     }
@@ -309,6 +397,119 @@ const SportPage = () => {
                     <Trash2 size={16} />
                   </button>
                 </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="content-card history-card">
+        <div className="section-title">
+          <div>
+            <h2>{t("sportHistory")}</h2>
+            <p>{t("sportHistorySubtitle")}</p>
+          </div>
+        </div>
+
+        <div className="filter-grid sport-history-filter-grid">
+          <label>
+            {t("search")}
+            <input
+              className="form-input"
+              type="text"
+              name="search"
+              value={historyFilters.search}
+              onChange={handleHistoryFilterChange}
+              placeholder={t("searchPlaceholder")}
+            />
+          </label>
+
+          <label>
+            {t("date")}
+            <input
+              className="form-input"
+              type="date"
+              name="date"
+              value={historyFilters.date}
+              onChange={handleHistoryFilterChange}
+            />
+          </label>
+
+          <label>
+            {t("activityName")}
+            <select
+              className="form-select"
+              name="activityName"
+              value={historyFilters.activityName}
+              onChange={handleHistoryFilterChange}
+            >
+              <option value="">{t("allActivities")}</option>
+              {activityOptions.map((activityName) => (
+                <option key={activityName} value={activityName}>
+                  {activityName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            {t("minCalories")}
+            <input
+              className="form-input"
+              type="number"
+              name="minCalories"
+              value={historyFilters.minCalories}
+              onChange={handleHistoryFilterChange}
+              placeholder="0"
+            />
+          </label>
+
+          <label>
+            {t("maxCalories")}
+            <input
+              className="form-input"
+              type="number"
+              name="maxCalories"
+              value={historyFilters.maxCalories}
+              onChange={handleHistoryFilterChange}
+              placeholder="300"
+            />
+          </label>
+
+          <button type="button" className="secondary-button" onClick={clearHistoryFilters}>
+            {t("clearFilters")}
+          </button>
+        </div>
+
+        {historyEntries.length === 0 ? (
+          <div className="empty-state">
+            <p>{t("noSportHistory")}</p>
+          </div>
+        ) : (
+          <div className="sport-entry-list history-list">
+            {historyEntries.map((entry) => (
+              <article key={entry._id} className="sport-entry-card">
+                <div className="sport-entry-main">
+                  <div className="sport-entry-icon">
+                    <Flame size={19} />
+                  </div>
+
+                  <div>
+                    <h3>{entry.activityName}</h3>
+                    <p>
+                      {entry.date} · {entry.durationMinutes || 0} min · {entry.caloriesBurned || 0} kcal
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="small-action-button"
+                  onClick={() => handleUseAgain(entry)}
+                >
+                  <RotateCcw size={15} />
+                  {t("useAgain")}
+                </button>
               </article>
             ))}
           </div>

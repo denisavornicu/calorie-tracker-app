@@ -1,3 +1,5 @@
+// backend/server.js
+
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -24,6 +26,7 @@ app.use("/api/weight", require("./routes/weightRoutes"));
 app.use("/api/sport", require("./routes/sportRoutes"));
 app.use("/api/fasts", require("./routes/fastRoutes"));
 app.use("/api/dashboard", require("./routes/dashboardRoutes"));
+app.use("/api/statistics", require("./routes/statisticsRoutes"));
 
 const PORT = process.env.PORT || 5000;
 
