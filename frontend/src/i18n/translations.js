@@ -3,7 +3,7 @@
 export const resources = {
   ro: {
     translation: {
-      appName: "Foodie Goodie",
+      appName: "Calorie Tracker",
       welcomeBack: "Bine ai revenit",
       createAccount: "Creează cont",
       loginSubtitle: "Intră în contul tău pentru a-ți urmări mesele, apa, greutatea și fasting-ul.",
@@ -81,6 +81,12 @@ export const resources = {
       recordWeight: "Înregistrează greutatea",
       recordWeightSubtitle: "Adaugă greutatea de azi pentru a actualiza statisticile. Data și ora logării se salvează automat.",
       saveWeight: "Salvează greutatea",
+      fastStarted: "Fasting început",
+      fastingInProgress: "Cronometrul rulează în timp real.",
+      fastSavedMessage: "S-a înregistrat fastingul nr. {{number}} cu durata de {{duration}}.",
+      searchFood: "Caută aliment",
+      searchFoodPlaceholder: "Scrie numele alimentului...",
+      foodSearchMealHint: "Scrie numele alimentului și selectează rezultatul potrivit din lista afișată.",
       latestWeight: "Ultima greutate",
       loggedAt: "Logat la",
       editFood: "Editează aliment",
@@ -144,6 +150,15 @@ export const resources = {
       manualMealName: "Denumire estimare",
       manualMealNamePlaceholder: "Ex: prânz în oraș, latte, desert",
       manualMealSubtitle: "Folosește această zonă când ai calculat deja valorile sau vrei să introduci o estimare.",
+      changePassword: "Schimbă parola",
+      changePasswordSubtitle: "Actualizează parola contului tău. Ai nevoie de parola curentă.",
+      currentPassword: "Parola curentă",
+      newPassword: "Parolă nouă",
+      confirmPassword: "Confirmă parola nouă",
+      updatePassword: "Actualizează parola",
+      passwordUpdated: "Parola a fost actualizată.",
+      passwordsDoNotMatch: "Parolele nu coincid.",
+      passwordUpdateFailed: "Parola nu a putut fi actualizată.",
       mealHistory: "Istoric mese",
       mealHistorySubtitle: "Caută mese mai vechi și folosește-le din nou pentru ziua selectată.",
       useAgain: "Folosește din nou",
@@ -242,7 +257,7 @@ export const resources = {
   },
   en: {
     translation: {
-      appName: "Foodie Goodie",
+      appName: "Calorie Tracker",
       welcomeBack: "Welcome back",
       createAccount: "Create account",
       loginSubtitle: "Log in to track your meals, water, weight and fasting.",

@@ -1891,3 +1891,103 @@ a {
     width: 34px;
   }
 }
+
+.inline-card-form {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.inline-card-form .form-input {
+  padding: 0.7rem 0.75rem;
+  border-radius: 13px;
+  font-size: 0.82rem;
+}
+
+.inline-card-form .primary-button.small {
+  width: 100%;
+  padding: 0.68rem 0.75rem;
+}
+
+.water-card {
+  justify-content: flex-start;
+}
+
+.water-card .secondary-button {
+  margin-top: auto;
+}
+
+.food-search-panel {
+  position: relative;
+}
+
+.food-search-label {
+  min-width: 0;
+}
+
+.search-input-wrap {
+  position: relative;
+  display: grid;
+  align-items: center;
+}
+
+.search-input-wrap svg {
+  position: absolute;
+  left: 0.85rem;
+  color: var(--muted-color);
+  pointer-events: none;
+}
+
+.search-input-wrap .form-input {
+  padding-left: 2.5rem;
+}
+
+.food-suggestion-list {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border-radius: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--soft-shadow);
+}
+
+.food-suggestion-button {
+  width: 100%;
+  display: grid;
+  gap: 0.15rem;
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border-radius: 13px;
+  background: transparent;
+  color: var(--text-color);
+  cursor: pointer;
+  transition: 0.18s ease;
+}
+
+.food-suggestion-button:hover {
+  background: var(--accent-soft);
+}
+
+.food-suggestion-button span {
+  font-weight: 900;
+}
+
+.food-suggestion-button small {
+  color: var(--muted-color);
+  font-weight: 700;
+}
+
+.full-nutrition-grid {
+  grid-template-columns: 1fr;
+}
+
+.password-form-section {
+  margin-top: 0.85rem;
+}
+
+@media (min-width: 720px) {
+  .full-nutrition-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -57,6 +57,14 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
 
   const fetchProfile = async () => {
     try {
@@ -95,6 +103,15 @@ const ProfilePage = () => {
 
     setPreferences((currentPreferences) => ({
       ...currentPreferences,
+      [name]: value,
+    }));
+  };
+
+  const handlePasswordChange = (event) => {
+    const { name, value } = event.target;
+
+    setPasswordForm((currentForm) => ({
+      ...currentForm,
       [name]: value,
     }));
   };
@@ -157,6 +174,40 @@ const ProfilePage = () => {
       console.error("Failed to save profile", error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (event) => {
+    event.preventDefault();
+    setPasswordMessage("");
+    setPasswordError("");
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError(t("passwordsDoNotMatch"));
+      return;
+    }
+
+    try {
+      setSavingPassword(true);
+
+      await api.put("/profile/password", {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      setPasswordMessage(t("passwordUpdated"));
+    } catch (error) {
+      setPasswordError(
+        error.response?.data?.message || t("passwordUpdateFailed")
+      );
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -421,6 +472,66 @@ const ProfilePage = () => {
         <button type="submit" className="primary-button profile-save-button" disabled={saving}>
           {saving ? t("loading") : t("saveChanges")}
         </button>
+      </form>
+
+      <form onSubmit={handlePasswordSubmit} className="profile-form password-form-section">
+        <div className="content-card form-card">
+          <div className="section-title">
+            <div>
+              <h2>{t("changePassword")}</h2>
+              <p>{t("changePasswordSubtitle")}</p>
+            </div>
+          </div>
+
+          <div className="form-grid">
+            <label>
+              {t("currentPassword")}
+              <input
+                className="form-input"
+                type="password"
+                name="currentPassword"
+                value={passwordForm.currentPassword}
+                onChange={handlePasswordChange}
+                autoComplete="current-password"
+              />
+            </label>
+
+            <label>
+              {t("newPassword")}
+              <input
+                className="form-input"
+                type="password"
+                name="newPassword"
+                value={passwordForm.newPassword}
+                onChange={handlePasswordChange}
+                autoComplete="new-password"
+              />
+            </label>
+
+            <label>
+              {t("confirmPassword")}
+              <input
+                className="form-input"
+                type="password"
+                name="confirmPassword"
+                value={passwordForm.confirmPassword}
+                onChange={handlePasswordChange}
+                autoComplete="new-password"
+              />
+            </label>
+          </div>
+
+          {passwordMessage && <div className="success-message">{passwordMessage}</div>}
+          {passwordError && <div className="error-message">{passwordError}</div>}
+
+          <button
+            type="submit"
+            className="primary-button profile-save-button"
+            disabled={savingPassword}
+          >
+            {savingPassword ? t("loading") : t("updatePassword")}
+          </button>
+        </div>
       </form>
     </section>
   );

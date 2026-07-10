@@ -90,7 +90,15 @@ router.put("/stop/:id", protect, async (req, res) => {
 
     await fast.save();
 
-    res.json(fast);
+    const fastNumber = await FastEntry.countDocuments({
+      user: req.user._id,
+      status: "completed",
+    });
+
+    res.json({
+      fast,
+      fastNumber,
+    });
   } catch (error) {
     res.status(500).json({
       message: "Failed to stop fast",

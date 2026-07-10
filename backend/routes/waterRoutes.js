@@ -7,6 +7,7 @@ const { protect } = require("../middleware/authMiddleware");
 const router = express.Router();
 
 const getToday = () => new Date().toISOString().slice(0, 10);
+const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
 
 router.get("/", protect, async (req, res) => {
   try {
@@ -28,11 +29,11 @@ router.get("/", protect, async (req, res) => {
 
 router.post("/", protect, async (req, res) => {
   try {
-    const { date = getToday(), time, amountMl, type } = req.body;
+    const { date = getToday(), time = getCurrentTime(), amountMl, type = "Water" } = req.body;
 
-    if (!time || !amountMl) {
+    if (!amountMl || Number(amountMl) <= 0) {
       return res.status(400).json({
-        message: "Time and amount are required",
+        message: "Amount is required and must be greater than 0",
       });
     }
 

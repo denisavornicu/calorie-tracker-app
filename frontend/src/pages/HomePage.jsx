@@ -37,26 +37,23 @@ const formatDuration = (totalMinutes, language) => {
   const minutes = totalMinutes % 60;
 
   if (language === "en") {
-    if (hours > 0 && minutes > 0) {
-      return `${hours} hours and ${minutes} minutes`;
-    }
-
-    if (hours > 0) {
-      return `${hours} hours`;
-    }
-
+    if (hours > 0 && minutes > 0) return `${hours} hours and ${minutes} minutes`;
+    if (hours > 0) return `${hours} hours`;
     return `${minutes} minutes`;
   }
 
-  if (hours > 0 && minutes > 0) {
-    return `${hours} ore și ${minutes} minute`;
-  }
-
-  if (hours > 0) {
-    return `${hours} ore`;
-  }
-
+  if (hours > 0 && minutes > 0) return `${hours} ore și ${minutes} minute`;
+  if (hours > 0) return `${hours} ore`;
   return `${minutes} minute`;
+};
+
+const getFastElapsedMinutes = (activeFast) => {
+  if (!activeFast?.startTime) return 0;
+
+  const startedAt = new Date(activeFast.startTime).getTime();
+  const now = Date.now();
+
+  return Math.max(0, Math.floor((now - startedAt) / 60000));
 };
 
 const HomePage = () => {
@@ -64,7 +61,15 @@ const HomePage = () => {
 
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+
   const [fastLoading, setFastLoading] = useState(false);
+  const [activeFastElapsedMinutes, setActiveFastElapsedMinutes] = useState(0);
+  const [lastFastMessage, setLastFastMessage] = useState("");
+
+  const [showWaterForm, setShowWaterForm] = useState(false);
+  const [waterForm, setWaterForm] = useState({ amountMl: "" });
+  const [savingWater, setSavingWater] = useState(false);
+
   const [weightForm, setWeightForm] = useState({
     weightKg: "",
     notes: "",
@@ -85,6 +90,7 @@ const HomePage = () => {
   const handleStartFast = async () => {
     try {
       setFastLoading(true);
+      setLastFastMessage("");
 
       await api.post("/fasts/start", {
         startTime: new Date().toISOString(),
@@ -103,12 +109,52 @@ const HomePage = () => {
 
     try {
       setFastLoading(true);
-      await api.put(`/fasts/stop/${dashboard.activeFast._id}`);
+
+      const response = await api.put(`/fasts/stop/${dashboard.activeFast._id}`);
+      const stoppedFast = response.data.fast || response.data;
+      const fastNumber = response.data.fastNumber;
+
+      setLastFastMessage(
+        t("fastSavedMessage", {
+          number: fastNumber || "-",
+          duration: formatDuration(stoppedFast.durationMinutes, i18n.language),
+        })
+      );
+
       await fetchDashboard();
     } catch (error) {
       console.error("Failed to stop fast", error);
     } finally {
       setFastLoading(false);
+    }
+  };
+
+  const handleWaterChange = (event) => {
+    const { value } = event.target;
+    setWaterForm({ amountMl: value });
+  };
+
+  const handleSaveWater = async (event) => {
+    event.preventDefault();
+
+    if (!waterForm.amountMl || Number(waterForm.amountMl) <= 0) return;
+
+    try {
+      setSavingWater(true);
+
+      await api.post("/water", {
+        date: getToday(),
+        amountMl: Number(waterForm.amountMl),
+        type: "Water",
+      });
+
+      setWaterForm({ amountMl: "" });
+      setShowWaterForm(false);
+      await fetchDashboard();
+    } catch (error) {
+      console.error("Failed to save water", error);
+    } finally {
+      setSavingWater(false);
     }
   };
 
@@ -124,9 +170,7 @@ const HomePage = () => {
   const handleSaveWeight = async (event) => {
     event.preventDefault();
 
-    if (!weightForm.weightKg) {
-      return;
-    }
+    if (!weightForm.weightKg) return;
 
     try {
       setSavingWeight(true);
@@ -154,6 +198,23 @@ const HomePage = () => {
   useEffect(() => {
     fetchDashboard();
   }, []);
+
+  useEffect(() => {
+    const activeFast = dashboard?.activeFast;
+
+    if (!activeFast) {
+      setActiveFastElapsedMinutes(0);
+      return undefined;
+    }
+
+    setActiveFastElapsedMinutes(getFastElapsedMinutes(activeFast));
+
+    const intervalId = window.setInterval(() => {
+      setActiveFastElapsedMinutes(getFastElapsedMinutes(activeFast));
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [dashboard?.activeFast]);
 
   const calories = dashboard?.calories;
   const nutrients = dashboard?.nutrients;
@@ -257,44 +318,81 @@ const HomePage = () => {
           </div>
         </article>
 
-        <article className="summary-card">
+        <article className="summary-card water-card">
           <span>{t("waterConsumedTitle")}</span>
           <strong>{formatValue(water?.waterConsumedMl, "ml")}</strong>
           <p>
             {formatValue(water?.waterConsumedMl, "ml")} /{" "}
             {formatValue(water?.waterTargetMl, "ml")}
           </p>
+
+          <button
+            type="button"
+            className="secondary-button compact"
+            onClick={() => setShowWaterForm((currentValue) => !currentValue)}
+          >
+            {showWaterForm ? t("cancel") : t("addWater")}
+          </button>
+
+          {showWaterForm && (
+            <form onSubmit={handleSaveWater} className="inline-card-form">
+              <input
+                className="form-input"
+                type="number"
+                step="1"
+                value={waterForm.amountMl}
+                onChange={handleWaterChange}
+                placeholder="250 ml"
+              />
+
+              <button
+                type="submit"
+                className="primary-button small"
+                disabled={savingWater}
+              >
+                {savingWater ? t("loading") : t("save")}
+              </button>
+            </form>
+          )}
         </article>
 
         <article className="summary-card fasting-card">
-          <span>{t("yesterdayFast")}</span>
-
-          {yesterdayFast ? (
-            <strong>
-              {formatDuration(yesterdayFast.durationMinutes, i18n.language)}
-            </strong>
-          ) : (
-            <strong className="small-strong">{t("noYesterdayFast")}</strong>
-          )}
+          <span>{activeFast ? t("fastStarted") : t("yesterdayFast")}</span>
 
           {activeFast ? (
-            <button
-              type="button"
-              className="secondary-button compact"
-              onClick={handleStopFast}
-              disabled={fastLoading}
-            >
-              {fastLoading ? t("loading") : t("stopFast")}
-            </button>
+            <>
+              <strong>{formatDuration(activeFastElapsedMinutes, i18n.language)}</strong>
+              <p>{t("fastingInProgress")}</p>
+              <button
+                type="button"
+                className="secondary-button compact"
+                onClick={handleStopFast}
+                disabled={fastLoading}
+              >
+                {fastLoading ? t("loading") : t("stopFast")}
+              </button>
+            </>
           ) : (
-            <button
-              type="button"
-              className="secondary-button compact"
-              onClick={handleStartFast}
-              disabled={fastLoading}
-            >
-              {fastLoading ? t("loading") : t("startFast")}
-            </button>
+            <>
+              {lastFastMessage ? (
+                <strong className="small-strong">{lastFastMessage}</strong>
+              ) : yesterdayFast ? (
+                <strong>
+                  {formatDuration(yesterdayFast.durationMinutes, i18n.language)}
+                </strong>
+              ) : (
+                <strong className="small-strong">{t("noYesterdayFast")}</strong>
+              )}
+
+              <button
+                type="button"
+                className="secondary-button compact"
+                onClick={handleStartFast}
+                disabled={fastLoading}
+              >
+                {fastLoading ? t("loading") : t("startFast")}
+              </button>
+            </>
           )}
         </article>
       </div>
@@ -310,7 +408,7 @@ const HomePage = () => {
         {latestWeight && (
           <div className="info-box weight-latest-box">
             <p>
-              {t("latestWeight")}: <strong>{latestWeight.weightKg} kg</strong> · {" "}
+              {t("latestWeight")}: <strong>{latestWeight.weightKg} kg</strong> ·{" "}
               {t("loggedAt")}: {latestWeight.date} {latestWeight.time || ""}
             </p>
           </div>

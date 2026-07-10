@@ -1,7 +1,7 @@
 //frontend/src/pages/MealsPage.jsx
 
 import { useEffect, useMemo, useState } from "react";
-import { Edit3, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Edit3, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import api from "../api/axiosConfig";
 
@@ -23,13 +23,6 @@ const emptyMealForm = {
   mealType: "Breakfast",
 };
 
-const emptyManualForm = {
-  foodName: "",
-  calories: "",
-  protein: "",
-  fiber: "",
-};
-
 const nutritionKeys = [
   "calories",
   "protein",
@@ -41,6 +34,19 @@ const nutritionKeys = [
   "sugar",
   "addedSugar",
 ];
+
+const emptyManualForm = {
+  foodName: "",
+  calories: "",
+  protein: "",
+  fiber: "",
+  fat: "",
+  saturatedFat: "",
+  unsaturatedFat: "",
+  carbs: "",
+  sugar: "",
+  addedSugar: "",
+};
 
 const buildLocalItemFromSavedItem = (item) => {
   const foodId =
@@ -73,6 +79,7 @@ const MealsPage = () => {
   const [meals, setMeals] = useState([]);
   const [mealHistory, setMealHistory] = useState([]);
   const [formData, setFormData] = useState(emptyMealForm);
+  const [foodSearch, setFoodSearch] = useState("");
   const [selectedFoodId, setSelectedFoodId] = useState("");
   const [quantityGrams, setQuantityGrams] = useState("");
   const [manualForm, setManualForm] = useState(emptyManualForm);
@@ -120,6 +127,21 @@ const MealsPage = () => {
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  const filteredFoodSuggestions = useMemo(() => {
+    const search = foodSearch.trim().toLowerCase();
+
+    if (!search) return [];
+
+    return foods
+      .filter((food) => {
+        const name = food.name?.toLowerCase() || "";
+        const brand = food.brand?.toLowerCase() || "";
+        const category = food.category?.toLowerCase() || "";
+        return name.includes(search) || brand.includes(search) || category.includes(search);
+      })
+      .slice(0, 8);
+  }, [foods, foodSearch]);
 
   const calculateItemNutrition = (food, quantity) => {
     const factor = Number(quantity || 0) / 100;
@@ -177,6 +199,16 @@ const MealsPage = () => {
     }
   };
 
+  const handleFoodSearchChange = (event) => {
+    setFoodSearch(event.target.value);
+    setSelectedFoodId("");
+  };
+
+  const handleSelectFoodSuggestion = (food) => {
+    setSelectedFoodId(food._id);
+    setFoodSearch(`${food.name}${food.brand ? ` · ${food.brand}` : ""}`);
+  };
+
   const handleManualChange = (event) => {
     const { name, value } = event.target;
 
@@ -201,11 +233,7 @@ const MealsPage = () => {
   };
 
   const clearHistoryFilters = () => {
-    const clearedFilters = {
-      search: "",
-      mealType: "",
-      date: "",
-    };
+    const clearedFilters = { search: "", mealType: "", date: "" };
 
     setHistoryFilters(clearedFilters);
     fetchMealHistory(clearedFilters).catch((error) => {
@@ -214,15 +242,12 @@ const MealsPage = () => {
   };
 
   const handleAddFoodToMeal = () => {
-    if (!selectedFoodId || !quantityGrams || Number(quantityGrams) <= 0) {
-      return;
-    }
+    if (!quantityGrams || Number(quantityGrams) <= 0) return;
 
-    const selectedFood = foods.find((food) => food._id === selectedFoodId);
+    const selectedFood =
+      foods.find((food) => food._id === selectedFoodId) || filteredFoodSuggestions[0];
 
-    if (!selectedFood) {
-      return;
-    }
+    if (!selectedFood) return;
 
     const nutrition = calculateItemNutrition(selectedFood, quantityGrams);
 
@@ -237,17 +262,16 @@ const MealsPage = () => {
 
     setMealItems((currentItems) => [...currentItems, newItem]);
     setSelectedFoodId("");
+    setFoodSearch("");
     setQuantityGrams("");
   };
 
   const handleAddManualEstimate = () => {
-    const calories = Number(manualForm.calories || 0);
-    const protein = Number(manualForm.protein || 0);
-    const fiber = Number(manualForm.fiber || 0);
+    const hasNutritionValue = nutritionKeys.some(
+      (key) => Number(manualForm[key] || 0) > 0
+    );
 
-    if (!manualForm.foodName.trim() && calories <= 0 && protein <= 0 && fiber <= 0) {
-      return;
-    }
+    if (!manualForm.foodName.trim() && !hasNutritionValue) return;
 
     const newItem = {
       localId: crypto.randomUUID(),
@@ -255,15 +279,9 @@ const MealsPage = () => {
       source: "manual",
       foodName: manualForm.foodName.trim() || t("manualMealName"),
       quantityGrams: 0,
-      calories: roundValue(calories),
-      protein: roundValue(protein),
-      fiber: roundValue(fiber),
-      fat: 0,
-      saturatedFat: 0,
-      unsaturatedFat: 0,
-      carbs: 0,
-      sugar: 0,
-      addedSugar: 0,
+      ...Object.fromEntries(
+        nutritionKeys.map((key) => [key, roundValue(manualForm[key])])
+      ),
     };
 
     setMealItems((currentItems) => [...currentItems, newItem]);
@@ -284,6 +302,7 @@ const MealsPage = () => {
     });
 
     setSelectedFoodId("");
+    setFoodSearch("");
     setQuantityGrams("");
     setManualForm(emptyManualForm);
     setMealItems([]);
@@ -316,9 +335,7 @@ const MealsPage = () => {
   const handleSubmitMeal = async (event) => {
     event.preventDefault();
 
-    if (mealItems.length === 0) {
-      return;
-    }
+    if (mealItems.length === 0) return;
 
     try {
       setSaving(true);
@@ -356,10 +373,7 @@ const MealsPage = () => {
 
     setMealItems(meal.items.map(buildLocalItemFromSavedItem));
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleUseAgain = async (meal) => {
@@ -371,18 +385,13 @@ const MealsPage = () => {
     }));
     setMealItems(meal.items.map(buildLocalItemFromSavedItem));
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDeleteMeal = async (mealId) => {
     const confirmed = window.confirm(t("confirmDeleteMeal"));
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
       await api.delete(`/meals/${mealId}`);
@@ -461,27 +470,43 @@ const MealsPage = () => {
           </div>
 
           <div className="meal-entry-panels">
-            <div className="add-food-row">
+            <div className="add-food-row food-search-panel">
               <div className="panel-heading">
                 <h3>{t("addFoodFromDatabase")}</h3>
+                <p>{t("foodSearchMealHint")}</p>
               </div>
 
-              <label>
-                {t("selectFood")}
-                <select
-                  className="form-select"
-                  value={selectedFoodId}
-                  onChange={(event) => setSelectedFoodId(event.target.value)}
-                >
-                  <option value="">{t("chooseFood")}</option>
-
-                  {foods.map((food) => (
-                    <option key={food._id} value={food._id}>
-                      {food.name} - {food.calories || 0} kcal / 100g
-                    </option>
-                  ))}
-                </select>
+              <label className="food-search-label">
+                {t("searchFood")}
+                <div className="search-input-wrap">
+                  <Search size={17} />
+                  <input
+                    className="form-input"
+                    type="text"
+                    value={foodSearch}
+                    onChange={handleFoodSearchChange}
+                    placeholder={t("searchFoodPlaceholder")}
+                  />
+                </div>
               </label>
+
+              {filteredFoodSuggestions.length > 0 && !selectedFoodId && (
+                <div className="food-suggestion-list">
+                  {filteredFoodSuggestions.map((food) => (
+                    <button
+                      key={food._id}
+                      type="button"
+                      className="food-suggestion-button"
+                      onClick={() => handleSelectFoodSuggestion(food)}
+                    >
+                      <span>{food.name}</span>
+                      <small>
+                        {food.brand || t("noBrand")} · {food.calories || 0} kcal / 100g
+                      </small>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <label>
                 {t("quantityGrams")}
@@ -511,7 +536,7 @@ const MealsPage = () => {
                 <p>{t("manualMealSubtitle")}</p>
               </div>
 
-              <div className="manual-entry-grid">
+              <div className="manual-entry-grid full-nutrition-grid">
                 <label>
                   {t("manualMealName")}
                   <input
@@ -524,44 +549,20 @@ const MealsPage = () => {
                   />
                 </label>
 
-                <label>
-                  {t("calories")}
-                  <input
-                    className="form-input"
-                    type="number"
-                    step="0.1"
-                    name="calories"
-                    value={manualForm.calories}
-                    onChange={handleManualChange}
-                    placeholder="0"
-                  />
-                </label>
-
-                <label>
-                  {t("protein")}
-                  <input
-                    className="form-input"
-                    type="number"
-                    step="0.1"
-                    name="protein"
-                    value={manualForm.protein}
-                    onChange={handleManualChange}
-                    placeholder="0"
-                  />
-                </label>
-
-                <label>
-                  {t("fiber")}
-                  <input
-                    className="form-input"
-                    type="number"
-                    step="0.1"
-                    name="fiber"
-                    value={manualForm.fiber}
-                    onChange={handleManualChange}
-                    placeholder="0"
-                  />
-                </label>
+                {nutritionKeys.map((key) => (
+                  <label key={key}>
+                    {t(key)}
+                    <input
+                      className="form-input"
+                      type="number"
+                      step="0.1"
+                      name={key}
+                      value={manualForm[key]}
+                      onChange={handleManualChange}
+                      placeholder="0"
+                    />
+                  </label>
+                ))}
               </div>
 
               <button
@@ -601,6 +602,8 @@ const MealsPage = () => {
                       <span>{item.calories} kcal</span>
                       <span>{item.protein}g {t("proteinShort")}</span>
                       <span>{item.fiber}g {t("fiberShort")}</span>
+                      <span>{item.fat}g {t("fatShort")}</span>
+                      <span>{item.carbs}g {t("carbsShort")}</span>
                     </div>
 
                     <button
@@ -622,8 +625,11 @@ const MealsPage = () => {
                   <span>{roundValue(totals.protein)}g {t("proteinShort")}</span>
                   <span>{roundValue(totals.fiber)}g {t("fiberShort")}</span>
                   <span>{roundValue(totals.fat)}g {t("fatShort")}</span>
+                  <span>{roundValue(totals.saturatedFat)}g {t("saturatedFatShort")}</span>
+                  <span>{roundValue(totals.unsaturatedFat)}g {t("unsaturatedFatShort")}</span>
                   <span>{roundValue(totals.carbs)}g {t("carbsShort")}</span>
                   <span>{roundValue(totals.sugar)}g {t("sugarShort")}</span>
+                  <span>{roundValue(totals.addedSugar)}g {t("addedSugarShort")}</span>
                 </div>
               </div>
             </div>
@@ -792,6 +798,8 @@ const MealsPage = () => {
                   <span>{meal.totals.calories} kcal</span>
                   <span>{meal.totals.protein}g {t("proteinShort")}</span>
                   <span>{meal.totals.fiber}g {t("fiberShort")}</span>
+                  <span>{meal.totals.fat}g {t("fatShort")}</span>
+                  <span>{meal.totals.carbs}g {t("carbsShort")}</span>
                 </div>
 
                 <div className="saved-meal-foods">
