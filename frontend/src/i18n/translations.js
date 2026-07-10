@@ -3,7 +3,7 @@
 export const resources = {
   ro: {
     translation: {
-      appName: "Calorie Tracker",
+      appName: "Foodie Goodie",
       welcomeBack: "Bine ai revenit",
       createAccount: "Creează cont",
       loginSubtitle: "Intră în contul tău pentru a-ți urmări mesele, apa, greutatea și fasting-ul.",
@@ -257,7 +257,7 @@ export const resources = {
   },
   en: {
     translation: {
-      appName: "Calorie Tracker",
+      appName: "Foodie Goodie",
       welcomeBack: "Welcome back",
       createAccount: "Create account",
       loginSubtitle: "Log in to track your meals, water, weight and fasting.",
